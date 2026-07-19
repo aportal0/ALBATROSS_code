@@ -6,12 +6,16 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=8G
 
+# Directory
+dir_code="/home/PERSONALE/alice.portal2/ALBATROSS_code/python/"
+
 # Load modules
 module purge
 module load atmos/cdo/2.3.0
 
 # Activate your Python environment
-conda activate myenv
+source ~/anaconda3/etc/profile.d/conda.sh
+conda activate xesmf_env
 
 # Run job
-python 24h_mean.py
+python ${dir_code}compute_ET0.py
