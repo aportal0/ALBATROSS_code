@@ -1,14 +1,6 @@
 #!/usr/bin/env python3
 """
 Plot ET0 from monthly NetCDF files (Hargreaves or Modified Hargreaves).
-
-The files are expected to contain a 3-D variable (time, lat, lon) with monthly
-time stamps. The script:
-  1. selects the method  -> reads the corresponding .nc file
-  2. optionally averages over N consecutive months ENDING in the chosen month
-     (trailing window; year wrap handled automatically by rolling on the real
-      time axis)
-  3. plots a spatial map (climatology over all years, or a single year)
 """
 
 import calendar
@@ -18,123 +10,174 @@ import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-import cartopy.feature as cfeature
+from matplotlib.colors import BoundaryNorm
+from matplotlib.ticker import MaxNLocator
 
 
-MONTHS = list(calendar.month_abbr)[1:]  # Jan..Dec
+# =============================================================================
+# Configuration
+# =============================================================================
+VAR = "ET0"
+METHOD = "MH"          # "H" or "MH"
+MONTH = 12
+WINDOW = 1
+YEAR = 2023
+COUNTRY = "Madagascar"
+
+PATH_IN = Path("/home/alice/Desktop/UniBo/data/ERA5-Land/ET0/monthly/")
+PATH_OUT = Path("/home/alice/Desktop/UniBo/figures/ET0/")
 
 
-def load_var(path, var, country, method=None):
-    if var=="ET0":
-        if method=="H":
-       	    file = f"{path}ET0_Hargreaves_monthly_1993-2024_{country}.nc"
-        elif method=="MH":
-            file = f"{path}ET0_Mod-Hargreaves_monthly_1993-2024_{country}.nc"
-    ds = xr.open_dataset(file)
-    da = ds[var]
-    
-    rename = {}
-    for cand_t in ("time", "t"):
-        if cand_t in da.dims:
-            rename[cand_t] = "time"
-            break
-    for cand_y in ("lat", "latitude", "y", "nav_lat"):
-        if cand_y in da.dims:
-            rename[cand_y] = "lat"
-            break
-    for cand_x in ("lon", "longitude", "x", "nav_lon"):
-        if cand_x in da.dims:
-            rename[cand_x] = "lon"
-            break
-    if rename:
-        da = da.rename(rename)
-    return da
+# =============================================================================
+# Constants
+# =============================================================================
+MONTHS = list(calendar.month_abbr)[1:]
+
+METHOD_INFO = {
+    "H": {
+        "label": "Hargreaves",
+        "filename": "ET0_Hargreaves_monthly_1993-2024_{country}.nc",
+    },
+    "MH": {
+        "label": "Modified Hargreaves",
+        "filename": "ET0_Mod-Hargreaves_monthly_1993-2024_{country}.nc",
+    },
+}
+
+
+def build_input_file(country, method):
+    if method not in METHOD_INFO:
+        raise ValueError(f"Unknown method: {method}. Use one of {list(METHOD_INFO)}")
+    return PATH_IN / METHOD_INFO[method]["filename"].format(country=country)
+
+
+def build_output_file(country, method, window, year, month):
+    return PATH_OUT / f"ET0-{method}_{window}m_{year}{month:02d}_{country}.png"
+
+
+def load_var(var, country, method):
+    file_path = build_input_file(country, method)
+    ds = xr.open_dataset(file_path)
+    return ds[var]
 
 
 def window_mean_ending_month(da, month, window, year):
-    """
-    Trailing mean over `window` consecutive months ENDING at `month`.
+    if window < 1:
+        raise ValueError("window must be >= 1")
+    if not 1 <= month <= 12:
+        raise ValueError("month must be between 1 and 12")
 
-    - rolling on the real time axis: year wrap is automatic.
-    - keep only the window ending in (year, month)
-    """
     if window == 1:
-        # No smoothing: just pick the chosen month across years.
-        sel = da.where(da.time.dt.month == month, drop=True)
+        selected = da.where(da.time.dt.month == month, drop=True)
     else:
-        roll = da.rolling(time=window, center=False,
-                          min_periods=window).mean()
-        sel = roll.where(roll.time.dt.month == month, drop=True)
+        rolling_mean = da.rolling(time=window, center=False, min_periods=window).mean()
+        selected = rolling_mean.where(rolling_mean.time.dt.month == month, drop=True)
 
-    sel = sel.where(sel.time.dt.year == year, drop=True)
-    if sel.sizes["time"] == 0:
+    selected = selected.where(selected.time.dt.year == year, drop=True)
+
+    if selected.sizes["time"] == 0:
         raise ValueError(
             f"No data with a full {window}-month window ending in "
-            f"{MONTHS[month-1]} {year}."
+            f"{MONTHS[month - 1]} {year}."
         )
-    return sel.isel(time=0), sel.time[0].values
+
+    return selected.isel(time=0), selected.time[0].values
+
+
+def build_title(method, month, window, year):
+    method_label = METHOD_INFO[method]["label"]
+    period = f"{MONTHS[month - 1]} {year}"
+    window_label = "single month" if window == 1 else f"{window}-month mean"
+    return f"ET0 - {method_label}\n{window_label}, {period}"
+
+
+def get_color_settings():
+    vmin, vmax = 0, 7
+    levels = MaxNLocator(nbins=vmax * 2).tick_values(vmin, vmax)
+
+    cmap = plt.colormaps["YlGnBu"].copy()
+    cmap.set_over("purple")
+
+    norm = BoundaryNorm(levels, ncolors=cmap.N, clip=False)
+    return cmap, norm
 
 
 def plot_spatial(da, method, month, window, year, outpath):
-    period = (f"{MONTHS[month-1]} {year}")
-    win_label = "single month" if window == 1 else f"{window}-month mean"
-    method_label = {
-        "H": "Hargreaves",
-        "MH": "Modified Hargreaves (Droogers & Allen 2002)",
-    }
-    title = f"ET0 - {method_label[method]}\n{win_label}, {period}"
+    title = build_title(method, month, window, year)
 
-    lon, lat = da.lon, da.lat
-    vals = np.squeeze(da.values)            # shape (n_lat, n_lon) after time selection
-    fig = plt.figure(figsize=(8, 4.4))
-    ax = plt.axes(projection=ccrs.PlateCarree())
-    im = ax.pcolormesh(lon, lat, vals,
-                       transform=ccrs.PlateCarree(),
-                       cmap="YlGnBu", shading="auto")
-    ax.set_extent([float(lon.min()), float(lon.max()),
-                   float(lat.min()), float(lat.max())],
-                  crs=ccrs.PlateCarree())
-    ax.coastlines(resolution="50m", linewidth=0.6)
-    cb = fig.colorbar(im, ax=ax, label="ET0 (mm/day)", shrink=0.85)
-    gl = ax.gridlines(draw_labels=True, linewidth=0.3, color="0.5", alpha=0.5)
-    gl.top_labels = gl.right_labels = False
+    lon = np.asarray(da["longitude"].values)
+    lat = np.asarray(da["latitude"].values)
+    vals = np.squeeze(np.asarray(da.values))
+
+    cmap, norm = get_color_settings()
+
+    fig, ax = plt.subplots(
+        figsize=(4.4, 6),
+        subplot_kw={"projection": ccrs.PlateCarree()},
+    )
+
+    im = ax.pcolormesh(
+        lon,
+        lat,
+        vals,
+        transform=ccrs.PlateCarree(),
+        cmap=cmap,
+        norm=norm,
+    )
+
     ax.set_title(title)
-    fig.savefig(outpath, bbox_inches="tight")
+    ax.coastlines(resolution="50m", linewidth=0.6)
+
+    fig.colorbar(
+        im,
+        ax=ax,
+        label="ET0 (mm/day)",
+        shrink=0.8,
+        extend="max",
+    )
+
+    gridlines = ax.gridlines(
+        draw_labels=True,
+        linewidth=0.3,
+        color="0.5",
+        alpha=0.5,
+    )
+    gridlines.top_labels = False
+    gridlines.right_labels = False
+
+    fig.tight_layout()
+    fig.savefig(outpath, dpi=300)
     plt.close(fig)
 
 
-def main():
-    
-    # Parameters
-    var = 'ET0'
-    method = "MH" # choose between H (Hargreaves) and MH (modified Hargreaves)
-    month = 12
-    window = 1
-    year = 2023
-    country = "Madagascar"
-    
-    # I/O files
-    path_in = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/ET0/monthly/"
-    path_out = "/home/PERSONALE/alice.portal2/scratch/figures/ET0/"
-    file_out = f"{path_out}ET0-{method}_{window}m_{year}{month:02d}_{country}.png"
-    
-    # Load variable
-    da = load_var(path_in, var, country, method)
-    result, time_stamp = window_mean_ending_month(
-        da, month, window, year
+def print_summary(file_out, method, month, window, time_stamp, result):
+    print(f"Wrote {file_out}")
+    print(f"  method : {METHOD_INFO[method]['label']}")
+    print(f"  window : {window} month(s) ending in {MONTHS[month - 1]}")
+    print(f"  ending : {np.datetime_as_string(time_stamp, unit='D')}")
+    print(
+        f"  shape  : "
+        f"lat={result.sizes['latitude']}, lon={result.sizes['longitude']}"
+    )
+    print(
+        f"  range  : "
+        f"{float(np.nanmin(result.values)):.2f} .. "
+        f"{float(np.nanmax(result.values)):.2f} mm/day"
     )
 
-    plot_spatial(result, method, month, window,
-                 year, file_out)
-    print(f"Wrote {file_out}")
-    print(f"  method : {method}")
-    print(f"  window : {window} month(s) ending in {MONTHS[month-1]}")
-    print(f"  ending : {np.datetime_as_string(time_stamp, unit='D')}")
-    print(f"  shape  : lat={result.sizes['latitude']}, lon={result.sizes['longitude']}")
-    print(f"  range  : "
-          f"{float(np.nanmin(result.values)):.2f} .. "
-          f"{float(np.nanmax(result.values)):.2f} mm/day")
+
+def main():
+    PATH_OUT.mkdir(parents=True, exist_ok=True)
+
+    file_out = build_output_file(COUNTRY, METHOD, WINDOW, YEAR, MONTH)
+
+    da = load_var(VAR, COUNTRY, METHOD)
+    result, time_stamp = window_mean_ending_month(da, MONTH, WINDOW, YEAR)
+    plot_spatial(result, METHOD, MONTH, WINDOW, YEAR, file_out)
+
+    print_summary(file_out, METHOD, MONTH, WINDOW, time_stamp, result)
 
 
 if __name__ == "__main__":
     main()
+
