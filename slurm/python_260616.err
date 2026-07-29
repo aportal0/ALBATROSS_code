@@ -1,5 +1,0 @@
-Traceback (most recent call last):
-  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/plot_et0_simple.py", line 37, in <module>
-    title = f"ET0 - {method_label[method]}\n{period}"
-                                  ^^^^^^
-NameError: name 'method' is not defined
