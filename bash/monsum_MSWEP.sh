@@ -7,7 +7,7 @@ outdir="/home/PERSONALE/alice.portal2/scratch/MSWEP/MSWEP_V316_test/Past/Monthly
 
 mkdir -p "$outdir"
 
-for year in $(seq 2000 2024); do
+for year in $(seq 2000 2000); do
 
     echo "Processing $year"
 

@@ -18,4 +18,4 @@ source ~/anaconda3/etc/profile.d/conda.sh
 conda activate xesmf_env
 
 # Run job
-python ${dir_code}compute_ET0.py
+python ${dir_code}plot_et0_simple.py

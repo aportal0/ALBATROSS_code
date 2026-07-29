@@ -1,0 +1,4 @@
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/plot_et0_simple.py", line 56
+    fig.suptitle(title)`
+                       ^
+SyntaxError: invalid syntax

@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/plot_et0_simple.py", line 23, in <module>
+    file_in = f"{path}ET0_Mod-Hargreaves_monthly_1993-2024_{country}.nc"
+                 ^^^^
+NameError: name 'path' is not defined. Did you mean: 'Path'?

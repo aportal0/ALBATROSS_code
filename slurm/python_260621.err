@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/plot_et0_simple.py", line 58, in <module>
+    fig.savefig(outpath, bbox_inches='tight', dpi=300)
+                ^^^^^^^
+NameError: name 'outpath' is not defined

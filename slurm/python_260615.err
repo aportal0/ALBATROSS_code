@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/plot_et0_simple.py", line 32, in <module>
+    time_stamp = da.time[0].values
+                 ~~~~~~~^^^
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/core/dataarray.py", line 893, in __getitem__
+    return self.isel(indexers=self._item_key_to_dict(key))
+                              ~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/core/dataarray.py", line 874, in _item_key_to_dict
+    key = indexing.expanded_indexer(key, self.ndim)
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/core/indexing.py", line 261, in expanded_indexer
+    raise IndexError("too many indices")
+IndexError: too many indices
