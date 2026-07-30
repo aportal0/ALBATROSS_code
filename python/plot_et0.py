@@ -21,7 +21,7 @@ VAR = "ET0"
 METHOD = "MH"          # "H" or "MH"
 MONTH = 12
 WINDOW = 1
-YEAR = 2023
+YEAR = 2022
 COUNTRY = "Madagascar"
 
 PATH_IN = Path("/home/alice/Desktop/UniBo/data/ERA5-Land/ET0/monthly/")
