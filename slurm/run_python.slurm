@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=python
-#SBATCH --output=python_%j.out
-#SBATCH --error=python_%j.err
+#SBATCH --output=logs/python_%j.out
+#SBATCH --error=logs/python_%j.err
 #SBATCH --time=01:00:00
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=8G
@@ -18,4 +18,4 @@ source ~/anaconda3/etc/profile.d/conda.sh
 conda activate xesmf_env
 
 # Run job
-python ${dir_code}plot_et0_simple.py
+python ${dir_code}compute_et0.py

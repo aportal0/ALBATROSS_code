@@ -1,0 +1,160 @@
+[2m2026-07-30T06:10:40.706317Z[0m [[32m[1minfo     [0m] [1mStart time:    2026-07-30 08:10:40.706048[0m [[0m[1m[34mclimate_indices.__main__[0m][0m
+[2m2026-07-30T06:10:40.738366Z[0m [[31m[1merror    [0m] [1mFailed to complete            [0m [[0m[1m[34mclimate_indices.__main__[0m][0m
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/file_manager.py", line 219, in _acquire_with_cache_info
+    file = self._cache[self._key]
+           ~~~~~~~~~~~^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/lru_cache.py", line 56, in __getitem__
+    value = self._cache[key]
+            ~~~~~~~~~~~^^^^^
+KeyError: [<class 'h5netcdf.core.File'>, ('/home/PERSONALE/alice.portal2/scratch/ERA5-Land/ET0/monthly/precip_monthly_1993-2024_Madagascar.nc',), 'r', (('decode_vlen_strings', True), ('driver', None), ('format', 'NETCDF4'), ('invalid_netcdf', None), ('phony_dims', 'access')), '084c8d3f-f302-4175-a3f2-00c4d995610b']
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/climate_indices/__main__.py", line 1634, in process_climate_indices
+    input_type = _validate_args(arguments)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/climate_indices/__main__.py", line 108, in _validate_args
+    with xr.open_dataset(args.netcdf_precip) as dataset_precip:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/api.py", line 613, in open_dataset
+    backend_ds = backend.open_dataset(
+                 ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/h5netcdf_.py", line 557, in open_dataset
+    store = H5NetCDFStore.open(
+            ^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/h5netcdf_.py", line 258, in open
+    return cls(
+           ^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/h5netcdf_.py", line 152, in __init__
+    self._filename = find_root_and_group(self.ds)[0].filename
+                                         ^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/h5netcdf_.py", line 276, in ds
+    return self._acquire()
+           ^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/h5netcdf_.py", line 268, in _acquire
+    with self._manager.acquire_context(needs_lock) as root:
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/contextlib.py", line 137, in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/file_manager.py", line 207, in acquire_context
+    file, cached = self._acquire_with_cache_info(needs_lock)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/file_manager.py", line 225, in _acquire_with_cache_info
+    file = self._opener(*self._args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/h5netcdf/core.py", line 1892, in __init__
+    self._backend = _parse_backend(path, mode, backend, **kwargs)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/h5netcdf/core.py", line 174, in _parse_backend
+    raise ImportError(
+ImportError: No module named 'h5py', backend not available. Please install 'h5py' into your Python environment.
+[2m2026-07-30T06:10:40.744905Z[0m [[31m[1merror    [0m] [1mFailed to complete            [0m [[0m[1m[34mclimate_indices.__main__[0m][0m
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/file_manager.py", line 219, in _acquire_with_cache_info
+    file = self._cache[self._key]
+           ~~~~~~~~~~~^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/lru_cache.py", line 56, in __getitem__
+    value = self._cache[key]
+            ~~~~~~~~~~~^^^^^
+KeyError: [<class 'h5netcdf.core.File'>, ('/home/PERSONALE/alice.portal2/scratch/ERA5-Land/ET0/monthly/precip_monthly_1993-2024_Madagascar.nc',), 'r', (('decode_vlen_strings', True), ('driver', None), ('format', 'NETCDF4'), ('invalid_netcdf', None), ('phony_dims', 'access')), '084c8d3f-f302-4175-a3f2-00c4d995610b']
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/climate_indices/__main__.py", line 1597, in main
+    process_climate_indices(arguments=arguments)
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/climate_indices/__main__.py", line 1634, in process_climate_indices
+    input_type = _validate_args(arguments)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/climate_indices/__main__.py", line 108, in _validate_args
+    with xr.open_dataset(args.netcdf_precip) as dataset_precip:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/api.py", line 613, in open_dataset
+    backend_ds = backend.open_dataset(
+                 ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/h5netcdf_.py", line 557, in open_dataset
+    store = H5NetCDFStore.open(
+            ^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/h5netcdf_.py", line 258, in open
+    return cls(
+           ^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/h5netcdf_.py", line 152, in __init__
+    self._filename = find_root_and_group(self.ds)[0].filename
+                                         ^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/h5netcdf_.py", line 276, in ds
+    return self._acquire()
+           ^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/h5netcdf_.py", line 268, in _acquire
+    with self._manager.acquire_context(needs_lock) as root:
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/contextlib.py", line 137, in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/file_manager.py", line 207, in acquire_context
+    file, cached = self._acquire_with_cache_info(needs_lock)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/file_manager.py", line 225, in _acquire_with_cache_info
+    file = self._opener(*self._args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/h5netcdf/core.py", line 1892, in __init__
+    self._backend = _parse_backend(path, mode, backend, **kwargs)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/h5netcdf/core.py", line 174, in _parse_backend
+    raise ImportError(
+ImportError: No module named 'h5py', backend not available. Please install 'h5py' into your Python environment.
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/file_manager.py", line 219, in _acquire_with_cache_info
+    file = self._cache[self._key]
+           ~~~~~~~~~~~^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/lru_cache.py", line 56, in __getitem__
+    value = self._cache[key]
+            ~~~~~~~~~~~^^^^^
+KeyError: [<class 'h5netcdf.core.File'>, ('/home/PERSONALE/alice.portal2/scratch/ERA5-Land/ET0/monthly/precip_monthly_1993-2024_Madagascar.nc',), 'r', (('decode_vlen_strings', True), ('driver', None), ('format', 'NETCDF4'), ('invalid_netcdf', None), ('phony_dims', 'access')), '084c8d3f-f302-4175-a3f2-00c4d995610b']
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/bin/process_climate_indices", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/climate_indices/__main__.py", line 1597, in main
+    process_climate_indices(arguments=arguments)
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/climate_indices/__main__.py", line 1634, in process_climate_indices
+    input_type = _validate_args(arguments)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/climate_indices/__main__.py", line 108, in _validate_args
+    with xr.open_dataset(args.netcdf_precip) as dataset_precip:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/api.py", line 613, in open_dataset
+    backend_ds = backend.open_dataset(
+                 ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/h5netcdf_.py", line 557, in open_dataset
+    store = H5NetCDFStore.open(
+            ^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/h5netcdf_.py", line 258, in open
+    return cls(
+           ^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/h5netcdf_.py", line 152, in __init__
+    self._filename = find_root_and_group(self.ds)[0].filename
+                                         ^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/h5netcdf_.py", line 276, in ds
+    return self._acquire()
+           ^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/h5netcdf_.py", line 268, in _acquire
+    with self._manager.acquire_context(needs_lock) as root:
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/contextlib.py", line 137, in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/file_manager.py", line 207, in acquire_context
+    file, cached = self._acquire_with_cache_info(needs_lock)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/xarray/backends/file_manager.py", line 225, in _acquire_with_cache_info
+    file = self._opener(*self._args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/h5netcdf/core.py", line 1892, in __init__
+    self._backend = _parse_backend(path, mode, backend, **kwargs)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/climate-indices/lib/python3.11/site-packages/h5netcdf/core.py", line 174, in _parse_backend
+    raise ImportError(
+ImportError: No module named 'h5py', backend not available. Please install 'h5py' into your Python environment.
