@@ -2,6 +2,7 @@ import calendar
 import numpy as np
 import xarray as xr
 import pandas as pd
+from scipy.stats import fisk, norm
 
 
 def boxes_african_countries(name_country):
@@ -59,7 +60,7 @@ def _ra_monthly_cached(times, lat_deg, _cache={}):
     return out
 
 
-def _ra_dataarray(ds, time_dim='time', lat_dim='latitude'):
+def _ra_dataarray(ds, time_dim='time', lat_dim='lat'):
     Ra = _ra_monthly_cached(ds[time_dim].values, ds[lat_dim].values)
     return xr.DataArray(
         Ra, dims=[time_dim, lat_dim],
@@ -69,7 +70,7 @@ def _ra_dataarray(ds, time_dim='time', lat_dim='latitude'):
 
 # ---------------------------------------------------------------- Hargreaves
 def hargreaves_modified(ds, Ra=None, tmin_var='tmin', tmax_var='tmax',
-                        precip_var='precip', time_dim='time', lat_dim='latitude'):
+                        precip_var='precip', time_dim='time', lat_dim='lat'):
     if Ra is None:
         Ra = _ra_dataarray(ds, time_dim, lat_dim)
     tmin, tmax, precip = ds[tmin_var], ds[tmax_var], ds[precip_var]
@@ -86,7 +87,7 @@ def hargreaves_modified(ds, Ra=None, tmin_var='tmin', tmax_var='tmax',
 
 
 def hargreaves(ds, Ra=None, tmin_var='tmin', tmax_var='tmax',
-               time_dim='time', lat_dim='latitude'):
+               time_dim='time', lat_dim='lat'):
     if Ra is None:
         Ra = _ra_dataarray(ds, time_dim, lat_dim)
     tmin, tmax = ds[tmin_var], ds[tmax_var]
@@ -99,4 +100,83 @@ def hargreaves(ds, Ra=None, tmin_var='tmin', tmax_var='tmax',
     ET0.name = 'ET0'
     ET0.attrs['units'] = 'mm/day'
     return ET0
+
+
+# ---------------------------------------------------------------- spei
+def _fit_fisk(series):
+    vals = np.asarray(series, dtype=float)
+    vals = vals[np.isfinite(vals)]
+
+    if vals.size < 8:
+        return np.nan, np.nan, np.nan
+
+    try:
+        c, loc, scale = fisk.fit(vals)
+        if not np.isfinite(c) or not np.isfinite(loc) or not np.isfinite(scale):
+            return np.nan, np.nan, np.nan
+        if c <= 0 or scale <= 0:
+            return np.nan, np.nan, np.nan
+        return c, loc, scale
+    except Exception:
+        return np.nan, np.nan, np.nan
+
+
+def _spei_1d(values, months, cal_mask):
+    out = np.full(values.shape, np.nan, dtype=float)
+
+    for m in range(1, 13):
+        idx = (months == m)
+        idx_cal = idx & cal_mask
+
+        c, loc, scale = _fit_fisk(values[idx_cal])
+        if np.isnan(c):
+            continue
+
+        vals = values[idx]
+        good = np.isfinite(vals)
+        if not np.any(good):
+            continue
+
+        probs = np.full(vals.shape, np.nan, dtype=float)
+        probs[good] = fisk.cdf(vals[good], c, loc=loc, scale=scale)
+        probs = np.clip(probs, 1e-8, 1 - 1e-8)
+
+        out[idx] = norm.ppf(probs)
+
+    return out
+
+
+def compute_spei(balance, scale=1, cal_start="1993-01-01", cal_end="2020-12-31", time_dim='time'):
+    # --- rolling accumulation ---
+    accum = balance.rolling({time_dim: scale}, min_periods=scale).sum()
+
+    months = accum[time_dim].dt.month.values
+    cal_mask = (
+        (accum[time_dim] >= np.datetime64(cal_start)) &
+        (accum[time_dim] <= np.datetime64(cal_end))
+    ).values
+
+    arr = accum.values
+    nt, ny, nx = arr.shape
+    arr2 = arr.reshape(nt, ny * nx)
+
+    out2 = np.full(arr2.shape, np.nan, dtype=np.float32)
+
+    for j in range(arr2.shape[1]):
+        out2[:, j] = _spei_1d(arr2[:, j], months, cal_mask)
+
+    out = out2.reshape(nt, ny, nx)
+
+    spei = xr.DataArray(
+        out,
+        dims=accum.dims,
+        coords=accum.coords,
+        name=f"SPEI_{scale:02d}",
+    )
+    spei.attrs['units'] = '-'
+    spei.attrs['scale_months'] = scale
+    spei.attrs['calibration_start'] = cal_start
+    spei.attrs['calibration_end'] = cal_end
+
+    return spei
 

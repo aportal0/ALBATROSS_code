@@ -105,8 +105,8 @@ def get_color_settings():
 def plot_spatial(da, method, month, window, year, outpath):
     title = build_title(method, month, window, year)
 
-    lon = np.asarray(da["longitude"].values)
-    lat = np.asarray(da["latitude"].values)
+    lon = np.asarray(da["lon"].values)
+    lat = np.asarray(da["lat"].values)
     vals = np.squeeze(np.asarray(da.values))
 
     cmap, norm = get_color_settings()
@@ -157,7 +157,7 @@ def print_summary(file_out, method, month, window, time_stamp, result):
     print(f"  ending : {np.datetime_as_string(time_stamp, unit='D')}")
     print(
         f"  shape  : "
-        f"lat={result.sizes['latitude']}, lon={result.sizes['longitude']}"
+        f"lat={result.sizes['lat']}, lon={result.sizes['lon']}"
     )
     print(
         f"  range  : "

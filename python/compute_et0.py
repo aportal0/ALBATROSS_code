@@ -49,11 +49,17 @@ for year in years:
         tmax = tmax - 273.15
 
     # --- subset + rename ---
-    tmin_mg = fSPEI.subset_box(tmin, box).rename({'valid_time': 'time'})
-    tmax_mg = fSPEI.subset_box(tmax, box).rename({'valid_time': 'time'})
+    tmin_mg = fSPEI.subset_box(tmin, box).rename({'valid_time': 'time', 'latitude': 'lat', 'longitude': 'lon'})
+    tmax_mg = fSPEI.subset_box(tmax, box).rename({'valid_time': 'time', 'latitude': 'lat', 'longitude': 'lon'})
 
     # --- regrid precip (reusing saved weights) ---
-    precip_mg = regridder(precip).resample(time='1MS').sum().rename("precipitation")
+    precip_mg = (
+            regridder(precip)
+            .resample(time='1MS')
+            .sum()
+            .rename('precipitation')
+            .rename({'latitude': 'lat', 'longitude': 'lon'})
+    )
 
     # --- align time index ---
     tmin_mg = tmin_mg.resample(time='1MS').mean()
