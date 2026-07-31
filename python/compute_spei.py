@@ -8,7 +8,7 @@ dir_precip = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/ET0/monthly/"
 dir_out    = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/SPEI/monthly/"
 
 box = fSPEI.boxes_african_countries('madagascar')
-year_range = [1993, 2000]
+year_range = [1993, 2024]
 scales = [1]
 
 cal_start = f"{year_range[0]}-01-01"
@@ -46,16 +46,22 @@ balance = (precip - pet).rename('balance')
 balance.attrs['units'] = 'mm'
 print("Balance computed")
 
+# --- mask balance in ocean cells ---
+mask_ocean = np.isfinite(balance.isel(time=0))
+balance = balance.where(mask_ocean)
+print("Balance masked over ocean")
+
 # --- compute SPEI for selected scales ---
 os.makedirs(dir_out, exist_ok=True)
 
+balance_test = balance.isel(lat=slice(0, 50), lon=slice(0, 50))
 for scale in scales:
-    spei = fSPEI.compute_spei(balance, scale=scale, cal_start=cal_start, cal_end=cal_end)
-    spei.to_netcdf(os.path.join(dir_out, f'SPEI_{scale:02d}m_{year_range[0]}-{year_range[1]}_Madagascar.nc'))
+    spei = fSPEI.compute_spei(balance_test, scale=scale, cal_start=cal_start, cal_end=cal_end)
+    spei.to_netcdf(os.path.join(dir_out, f'SPEI_{scale}m_{year_range[0]}-{year_range[1]}_Madagascar.nc'))
     print(f"Saved SPEI-{scale}")
 
 # --- save water balance too ---
-balance.to_netcdf(os.path.join(dir_out, 'water-balance_monthly_{year_range[0]}-{year_range[1]}_Madagascar.nc'))
+balance.to_netcdf(os.path.join(dir_out, f'water-balance_monthly_{year_range[0]}-{year_range[1]}_Madagascar.nc'))
 
 print("Done")
 

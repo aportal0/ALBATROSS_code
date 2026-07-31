@@ -3,6 +3,8 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 from scipy.stats import fisk, norm
+import os
+from multiprocessing import Pool
 
 
 def boxes_african_countries(name_country):
@@ -146,8 +148,72 @@ def _spei_1d(values, months, cal_mask):
     return out
 
 
-def compute_spei(balance, scale=1, cal_start="1993-01-01", cal_end="2020-12-31", time_dim='time'):
+def _spei_point_worker(args):
+    j, vals, months, cal_mask, min_valid = args
+
+    if np.isfinite(vals).sum() < min_valid:
+        return j, np.full(vals.shape, np.nan, dtype=np.float32)
+
+    out = _spei_1d(vals, months, cal_mask).astype(np.float32)
+    return j, out
+
+
+def compute_spei(balance, scale, cal_start, cal_end,
+                 time_dim='time', lat_dim='lat', lon_dim='lon',
+                 n_workers=None, chunk_size=200):
     # --- rolling accumulation ---
+    accum = balance.rolling({time_dim: scale}, min_periods=scale).sum()
+    months = accum[time_dim].dt.month.values
+    cal_mask = (
+        (accum[time_dim] >= np.datetime64(cal_start)) &
+        (accum[time_dim] <= np.datetime64(cal_end))
+    ).values
+    # --- stack space to a single point dimension ---
+    accum_stacked = accum.stack(point=(lat_dim, lon_dim))
+    arr = accum_stacked.values   # (time, point)
+    # --- keep only points with at least some valid data ---
+    valid_points = np.isfinite(arr).any(axis=0)
+    valid_idx = np.where(valid_points)[0]
+    arr_valid = arr[:, valid_points]
+    out_valid = np.full(arr_valid.shape, np.nan, dtype=np.float32)
+    min_valid = max(8, scale + 6)
+    # --- number of workers ---
+    if n_workers is None:
+        n_workers = int(os.environ.get("SLURM_CPUS_PER_TASK", "1"))
+    # --- serial fallback ---
+    if n_workers <= 1:
+        for k in range(arr_valid.shape[1]):
+            vals = arr_valid[:, k]
+            if np.isfinite(vals).sum() < min_valid:
+                continue
+            out_valid[:, k] = _spei_1d(vals, months, cal_mask)
+            if k % 100 == 0:
+                print(f"SPEI-{scale}: {k}/{arr_valid.shape[1]} points")
+    else:
+        tasks = [
+            (k, arr_valid[:, k], months, cal_mask, min_valid)
+            for k in range(arr_valid.shape[1])
+        ]
+        with Pool(processes=n_workers) as pool:
+            for k, out in pool.imap_unordered(_spei_point_worker, tasks, chunksize=chunk_size):
+                out_valid[:, k] = out
+    # --- rebuild full output ---
+    out = np.full(arr.shape, np.nan, dtype=np.float32)
+    out[:, valid_points] = out_valid
+    spei = xr.DataArray(
+        out,
+        dims=accum_stacked.dims,
+        coords=accum_stacked.coords,
+        name=f"SPEI",
+    ).unstack('point')
+    spei.attrs['units'] = '-'
+    spei.attrs['scale_months'] = scale
+    spei.attrs['calibration_start'] = cal_start
+    spei.attrs['calibration_end'] = cal_end
+    return spei
+
+
+def compute_spei_old(balance, scale, cal_start, cal_end, time_dim='time'):
     accum = balance.rolling({time_dim: scale}, min_periods=scale).sum()
 
     months = accum[time_dim].dt.month.values
@@ -156,23 +222,26 @@ def compute_spei(balance, scale=1, cal_start="1993-01-01", cal_end="2020-12-31",
         (accum[time_dim] <= np.datetime64(cal_end))
     ).values
 
-    arr = accum.values
-    nt, ny, nx = arr.shape
-    arr2 = arr.reshape(nt, ny * nx)
+    stacked = accum.stack(point=('lat', 'lon'))
+    arr = stacked.values
 
-    out2 = np.full(arr2.shape, np.nan, dtype=np.float32)
+    valid_points = np.isfinite(arr).any(axis=0)
+    arr_valid = arr[:, valid_points]
 
-    for j in range(arr2.shape[1]):
-        out2[:, j] = _spei_1d(arr2[:, j], months, cal_mask)
+    out_valid = np.full(arr_valid.shape, np.nan, dtype=np.float32)
 
-    out = out2.reshape(nt, ny, nx)
+    for j in range(arr_valid.shape[1]):
+        out_valid[:, j] = _spei_1d(arr_valid[:, j], months, cal_mask)
+    out = np.full(arr.shape, np.nan, dtype=np.float32)
+    out[:, valid_points] = out_valid
 
     spei = xr.DataArray(
         out,
-        dims=accum.dims,
-        coords=accum.coords,
-        name=f"SPEI_{scale:02d}",
-    )
+        dims=stacked.dims,
+        coords=stacked.coords,
+        name=f"SPEI",
+    ).unstack('point')
+
     spei.attrs['units'] = '-'
     spei.attrs['scale_months'] = scale
     spei.attrs['calibration_start'] = cal_start
