@@ -16,9 +16,9 @@ mkdir -p "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/SPEI/"
 process_climate_indices \
   --index spei \
   --periodicity monthly \
-  --netcdf_precip "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/ET0/monthly/precip_monthly_1993-2024_Madagascar.nc" \
+  --netcdf_precip "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/ET0/monthly/precip_monthly_1993-2024_Madagascar_new1.nc" \
   --var_name_precip "precipitation" \
-  --netcdf_pet "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/ET0/monthly/ET0_Mod-Hargreaves_monthly_1993-2024_Madagascar.nc" \
+  --netcdf_pet "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/ET0/monthly/ET0_Mod-Hargreaves_monthly_1993-2024_Madagascar_new1.nc" \
   --var_name_pet "ET0" \
   --scales 1 3 6 12 \
   --calibration_start_year 1993 \
