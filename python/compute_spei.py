@@ -10,18 +10,21 @@ def main():
     dir_out    = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/SPEI/monthly/"
 
     year_range = [1993, 2024]
-    scales = [1]
+    scales = [1,3,6,12]
 
     cal_start = f"{year_range[0]}-01-01"
     cal_end   = f"{year_range[1]}-12-31"
 
+    method = "Mod-Hargreaves" # "Mod-Hargreaves" or "Hargreaves"
+    country = "Madagascar"
+
     # --- load ---
     ds_pet    = xr.open_dataset(
-        f"{dir_pet}ET0_Mod-Hargreaves_monthly_1993-2024_Madagascar.nc",
+        f"{dir_pet}ET0_{method}_monthly_1993-2024_{country}.nc",
         chunks={'time': 12}
     )
     ds_precip = xr.open_dataset(
-        f"{dir_precip}precip_monthly_1993-2024_Madagascar.nc",
+        f"{dir_precip}precip_monthly_1993-2024_{country}.nc",
         chunks={'time': 12}
     )
 
@@ -71,7 +74,7 @@ def main():
         spei.to_netcdf(
             os.path.join(
                 dir_out,
-                f'SPEI_{scale}m_{year_range[0]}-{year_range[1]}_Madagascar.nc'
+                f'SPEI_{method}_{scale}m_{year_range[0]}-{year_range[1]}_{country}.nc'
             )
         )
         print(f"Saved SPEI-{scale}")
@@ -80,7 +83,7 @@ def main():
     balance.to_netcdf(
         os.path.join(
             dir_out,
-            f'water-balance_monthly_{year_range[0]}-{year_range[1]}_Madagascar.nc'
+            f'water-balance_{method}_monthly_{year_range[0]}-{year_range[1]}_{country}.nc'
         )
     )
 
