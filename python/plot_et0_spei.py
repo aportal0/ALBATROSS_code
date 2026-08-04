@@ -30,9 +30,9 @@ VAR_PR = "precipitation"
 VAR_WB = "balance"
 
 METHOD = "MH"             # "H" or "MH"
-MONTH = 12
-WINDOW = 3
-YEAR = 2022
+MONTH = 6
+WINDOW = 1
+YEAR = 2023
 COUNTRY = "Madagascar"
 
 PATH_ET0 = Path("/home/alice/Desktop/UniBo/data/ERA5-Land/ET0/monthly/")
@@ -206,8 +206,8 @@ def build_title_combo(method, month, window, year):
 # Color settings
 # =============================================================================
 def get_color_settings_et0():
-    vmin, vmax = 0, 7
-    levels = MaxNLocator(nbins=vmax * 2).tick_values(vmin, vmax)
+    vmin, vmax = 0, 200
+    levels = MaxNLocator(nbins=10).tick_values(vmin, vmax)
 
     cmap = plt.colormaps["YlGnBu"].copy()
     cmap.set_over("purple")
@@ -217,7 +217,7 @@ def get_color_settings_et0():
 
 
 def get_color_settings_spei():
-    levels = np.array([-2.0, -1.5, -1.0, -0.5, 0.5, 1.0, 1.5, 2.0])
+    levels = np.array([-2.5, -2.0, -1.5, -1.0, -0.5, 0.5, 1.0, 1.5, 2.0, 2.5])
 
     cmap = plt.colormaps["RdBu"].copy()
     norm = BoundaryNorm(levels, ncolors=cmap.N, clip=False)
@@ -225,16 +225,16 @@ def get_color_settings_spei():
 
 
 def get_color_settings_pr():
-    vmin, vmax = 0, 500
-    levels = MaxNLocator(nbins=10).tick_values(vmin, vmax)
+    vmin, vmax = 0, 400
+    levels = MaxNLocator(nbins=8).tick_values(vmin, vmax)
     cmap = plt.colormaps["Blues"].copy()
-    cmap.set_over("navy")
+    cmap.set_over("k")
     norm = BoundaryNorm(levels, ncolors=cmap.N, clip=False)
     return cmap, norm
 
 
 def get_color_settings_wb():
-    levels = np.array([-500, -400, -300, -200, -100, -50, 50, 100, 200, 300, 400, 500])
+    levels = np.array([-300, -250, -200, -150, -100, -50, -25, 25, 50, 100, 150, 200, 250, 300])
     cmap = plt.colormaps["BrBG"].copy()
     norm = BoundaryNorm(levels, ncolors=cmap.N, clip=False)
     return cmap, norm
@@ -296,7 +296,7 @@ def plot_et0(da, method, month, window, year, outpath):
     fig.colorbar(
         im,
         ax=ax,
-        label="ET0 {window}-month mean (mm)",
+        label=f"ET0 {window}-month mean (mm)",
         shrink=0.8,
         extend="max",
     )
@@ -514,8 +514,8 @@ def main():
 
     result_et0, time_et0 = window_mean_or_sum_ending_month(da_et0, MONTH, WINDOW, YEAR, "mean")
     result_spei, time_spei = select_month_year(da_spei, MONTH, YEAR)
-    result_pr, time_pr = window_mean_or_sum_ending_month(da_pr, MONTH, WINDOW, YEAR, "sum")
-    result_wb, time_wb = window_mean_or_sum_ending_month(da_wb, MONTH, WINDOW, YEAR, "sum")
+    result_pr, time_pr = window_mean_or_sum_ending_month(da_pr, MONTH, WINDOW, YEAR, "mean")
+    result_wb, time_wb = window_mean_or_sum_ending_month(da_wb, MONTH, WINDOW, YEAR, "mean")
 
     plot_et0(result_et0, METHOD, MONTH, WINDOW, YEAR, file_out_et0)
     plot_spei(result_spei, METHOD, MONTH, WINDOW, YEAR, file_out_spei)
