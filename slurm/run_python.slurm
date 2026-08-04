@@ -22,4 +22,4 @@ export OMP_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export NUMEXPR_NUM_THREADS=1
-python ${dir_code}compute_spei.py
+python ${dir_code}compute_et0.py

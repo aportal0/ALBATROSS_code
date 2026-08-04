@@ -108,17 +108,17 @@ def build_output_file_combo(country, method, window, year, month):
 def load_var(var, country, method, window):
     file_path = build_input_file(var, country, method, window)
     ds = xr.open_dataset(file_path)
-    da = ds[var]
     if var==VAR_ET0:
-        da = convert_day_to_month(da)
-    return da
+        return convert_day_to_month(ds[var])
+    else:
+        return ds[var]
 
 
 def convert_day_to_month(da, dim_time="time"):
     days = xr.DataArray(
         da[dim_time].dt.days_in_month,
-        coords={dim_time: da[dim_time]},
-        dims=[dim_time]
+        coords={'time': da[dim_time]},
+        dims=['time']
     )
     return da * days
 
@@ -199,7 +199,7 @@ def build_title_combo(method, month, window, year):
     method_label = METHOD_INFO[method]["label"]
     period = f"{MONTHS[month - 1]} {year}"
     window_label = "single month" if window == 1 else f"{window} months"
-    return f"ET0, SPEI-{window}, P, WB - {method_label}\n{window_label}, {period}"
+    return f"ET0-mean, SPEI-{window}, P-sum, WB-sum - {method_label}\n{window_label}, {period}"
 
 
 # =============================================================================
@@ -296,7 +296,7 @@ def plot_et0(da, method, month, window, year, outpath):
     fig.colorbar(
         im,
         ax=ax,
-        label="ET0 {window}-month mean (mm)",
+        label="ET0 (mm/day)",
         shrink=0.8,
         extend="max",
     )
@@ -366,7 +366,7 @@ def plot_pr(da, month, window, year, outpath):
     fig.colorbar(
         im,
         ax=ax,
-        label=f"P {window}-month mean (mm)",
+        label=f"P {window}-month cum. (mm)",
         shrink=0.8,
         extend="max",
     )
@@ -401,7 +401,7 @@ def plot_wb(da, method, month, window, year, outpath):
     fig.colorbar(
         im,
         ax=ax,
-        label=f"P - ET0 ({window}-month mean, mm)",
+        label=f"P - ET0 ({window}-month, mm)",
         shrink=0.8,
         extend="both",
     )
@@ -435,25 +435,25 @@ def plot_et0_spei_pr_wb(et0, spei, pr, wb, method, month, window, year, outpath)
     )
 
     im0 = axes[0, 0].pcolormesh(
-        lon_spei, lat_spei, vals_spei,
-        transform=ccrs.PlateCarree(),
-        cmap=cmap_spei, norm=norm_spei
-    )
-    _format_map(axes[0, 0], f"SPEI-{window}")
-    
-    im1 = axes[0, 1].pcolormesh(
         lon_et0, lat_et0, vals_et0,
         transform=ccrs.PlateCarree(),
         cmap=cmap_et0, norm=norm_et0
     )
-    _format_map(axes[0, 1], f"ET0 ({window}-month mean)")
+    _format_map(axes[0, 0], f"ET0 ({window}-month mean)")
+
+    im1 = axes[0, 1].pcolormesh(
+        lon_spei, lat_spei, vals_spei,
+        transform=ccrs.PlateCarree(),
+        cmap=cmap_spei, norm=norm_spei
+    )
+    _format_map(axes[0, 1], f"SPEI-{window}")
 
     im2 = axes[1, 0].pcolormesh(
         lon_pr, lat_pr, vals_pr,
         transform=ccrs.PlateCarree(),
         cmap=cmap_pr, norm=norm_pr
     )
-    _format_map(axes[1, 0], f"P ({window}-month mean)")
+    _format_map(axes[1, 0], f"P ({window}-month cum.)")
 
     im3 = axes[1, 1].pcolormesh(
         lon_wb, lat_wb, vals_wb,
@@ -464,10 +464,10 @@ def plot_et0_spei_pr_wb(et0, spei, pr, wb, method, month, window, year, outpath)
 
     fig.suptitle(title)
 
-    fig.colorbar(im0, ax=axes[0, 0], label=f"SPEI-{window} (-)", shrink=0.8, extend="both")
-    fig.colorbar(im1, ax=axes[0, 1], label="ET0 (mm/month)", shrink=0.8, extend="max")
-    fig.colorbar(im2, ax=axes[1, 0], label="P (mm/month)", shrink=0.8, extend="max")
-    fig.colorbar(im3, ax=axes[1, 1], label="WB (mm/month)", shrink=0.8, extend="both")
+    fig.colorbar(im0, ax=axes[0, 0], label="ET0 (mm/day)", shrink=0.8, extend="max")
+    fig.colorbar(im1, ax=axes[0, 1], label=f"SPEI-{window} (-)", shrink=0.8, extend="both")
+    fig.colorbar(im2, ax=axes[1, 0], label="P (mm)", shrink=0.8, extend="max")
+    fig.colorbar(im3, ax=axes[1, 1], label="WB (mm)", shrink=0.8, extend="both")
 
     fig.tight_layout()
     fig.savefig(outpath, dpi=300)
@@ -523,7 +523,7 @@ def main():
     plot_wb(result_wb, METHOD, MONTH, WINDOW, YEAR, file_out_wb)
     plot_et0_spei_pr_wb(result_et0, result_spei, result_pr, result_wb, METHOD, MONTH, WINDOW, YEAR, file_out_combo)
 
-    print_summary(file_out_et0, "ET0-{WINDOW}", time_et0, result_et0)
+    print_summary(file_out_et0, "ET0", time_et0, result_et0)
     print_summary(file_out_spei, f"SPEI-{WINDOW}", time_spei, result_spei)
     print_summary(file_out_pr, f"P-{WINDOW}", time_pr, result_pr)
     print_summary(file_out_wb, f"WB-{WINDOW}", time_pr, result_wb)
