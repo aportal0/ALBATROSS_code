@@ -29,10 +29,10 @@ VAR_SPEI = "SPEI"      # change if your variable is named differently
 VAR_PR = "precipitation"
 VAR_WB = "balance"
 
-METHOD = "MH"             # "H" or "MH"
-MONTH = 6
-WINDOW = 1
-YEAR = 2023
+METHOD = "H"             # "H" or "MH"
+MONTH = 11
+WINDOW = 3
+YEAR = "clim"               # year (int) or "clim" (str)
 COUNTRY = "Madagascar"
 
 PATH_ET0 = Path("/home/alice/Desktop/UniBo/data/ERA5-Land/ET0/monthly/")
@@ -92,14 +92,16 @@ def build_input_file(var, country, method, window=None):
 
 
 def build_output_file(var, country, method, window, year, month):
+    year_label = str(year)
     if var in [VAR_ET0, VAR_SPEI, VAR_WB]:
-        return PATH_OUT / f"{var}_{method}_{window}m_{year}{month:02d}_{country}.png"
+        return PATH_OUT / f"{var}_{method}_{window}m_{year_label}{month:02d}_{country}.png"
     elif var == VAR_PR:
-        return PATH_OUT / f"{var}_{window}m_{year}{month:02d}_{country}.png"
+        return PATH_OUT / f"{var}_{window}m_{year_label}{month:02d}_{country}.png"
 
 
 def build_output_file_combo(country, method, window, year, month):
-    return PATH_OUT / f"ET0-SPEI-PR-WB_{method}_{window}m_{year}{month:02d}_{country}.png"
+    year_label = str(year)
+    return PATH_OUT / f"ET0-SPEI-PR-WB_{method}_{window}m_{year_label}{month:02d}_{country}.png"
 
 
 # =============================================================================
@@ -129,14 +131,21 @@ def convert_day_to_month(da, dim_time="time"):
 def select_month_year(da, month, year):
     if not 1 <= month <= 12:
         raise ValueError("month must be between 1 and 12")
-
     selected = da.where(da.time.dt.month == month, drop=True)
+    if is_climatology_year(year):
+        if selected.sizes["time"] == 0:
+            raise ValueError(f"No data found for climatology of {MONTHS[month - 1]}.")
+        result = selected.mean(dim="time", skipna=True)
+        time_stamp = selected.time.values[0]
+        return result, time_stamp
     selected = selected.where(selected.time.dt.year == year, drop=True)
-
     if selected.sizes["time"] == 0:
         raise ValueError(f"No data found for {MONTHS[month - 1]} {year}.")
-
     return selected.isel(time=0), selected.time[0].values
+    
+
+def is_climatology_year(year):
+    return isinstance(year, str) and year.lower() == "clim"
 
 
 def window_mean_or_sum_ending_month(da, month, window, year, l_stats):
@@ -144,7 +153,6 @@ def window_mean_or_sum_ending_month(da, month, window, year, l_stats):
         raise ValueError("window must be >= 1")
     if not 1 <= month <= 12:
         raise ValueError("month must be between 1 and 12")
-
     if window == 1:
         selected = da.where(da.time.dt.month == month, drop=True)
     else:
@@ -155,43 +163,56 @@ def window_mean_or_sum_ending_month(da, month, window, year, l_stats):
         else:
             raise ValueError("stats must be 'mean' or 'sum'")
         selected = rolling_stats.where(rolling_stats.time.dt.month == month, drop=True)
+    if is_climatology_year(year):
+        if selected.sizes["time"] == 0:
+            raise ValueError(
+                f"No data found for climatology with a full {window}-month window ending in "
+                f"{MONTHS[month - 1]}."
+            )
+        result = selected.mean(dim="time", skipna=True)
+        time_stamp = selected.time.values[0]
+        return result, time_stamp
     selected = selected.where(selected.time.dt.year == year, drop=True)
-
     if selected.sizes["time"] == 0:
         raise ValueError(
             f"No data with a full {window}-month window ending in "
             f"{MONTHS[month - 1]} {year}."
         )
-
     return selected.isel(time=0), selected.time[0].values
 
 
 # =============================================================================
 # Titles
 # =============================================================================
+def build_period_label(month, year):
+    if is_climatology_year(year):
+        return f"{MONTHS[month - 1]} climatology"
+    return f"{MONTHS[month - 1]} {year}"
+
+
 def build_title_et0(method, month, window, year):
     method_label = METHOD_INFO[method]["label"]
-    period = f"{MONTHS[month - 1]} {year}"
+    period = build_period_label(month, year)
     window_label = "single month" if window == 1 else f"{window}-month mean"
     return f"ET0 - {method_label}\n{window_label}, {period}"
 
 
 def build_title_spei(method, month, window, year):
     method_label = METHOD_INFO[method]["label"]
-    period = f"{MONTHS[month - 1]} {year}"
+    period = build_period_label(month, year)
     return f"SPEI-{window} - {method_label}\n{period}"
 
 
 def build_title_pr(month, window, year):
-    period = f"{MONTHS[month - 1]} {year}"
-    window_label = "single month" if window == 1 else f"{window}-month sum"
+    period = build_period_label(month, year)
+    window_label = "single month" if window == 1 else f"{window}-month mean"
     return f"Precipitation\n {window_label}, {period}"
 
 
 def build_title_wb(method, month, window, year):
     method_label = METHOD_INFO[method]["label"]
-    period = f"{MONTHS[month - 1]} {year}"
-    window_label = "single month" if window == 1 else f"{window}-month sum"
+    period = build_period_label(month, year)
+    window_label = "single month" if window == 1 else f"{window}-month mean"
     return f"Water balance - {method_label}\n{window_label}, {period}"
 
 
@@ -296,7 +317,7 @@ def plot_et0(da, method, month, window, year, outpath):
     fig.colorbar(
         im,
         ax=ax,
-        label=f"ET0 {window}-month mean (mm)",
+        label=f"ET0 ({window}-month mean, mm)",
         shrink=0.8,
         extend="max",
     )
@@ -366,7 +387,7 @@ def plot_pr(da, month, window, year, outpath):
     fig.colorbar(
         im,
         ax=ax,
-        label=f"P {window}-month mean (mm)",
+        label=f"P ({window}-month mean, mm)",
         shrink=0.8,
         extend="max",
     )
@@ -477,13 +498,15 @@ def plot_et0_spei_pr_wb(et0, spei, pr, wb, method, month, window, year, outpath)
 # =============================================================================
 # Summary
 # =============================================================================
-def print_summary(file_out, label, time_stamp, result):
+def print_summary(file_out, label, time_stamp, result, month=None, year=None):
     lon_name = "lon" if "lon" in result.coords else "longitude"
     lat_name = "lat" if "lat" in result.coords else "latitude"
-
     print(f"Wrote {file_out}")
     print(f"  field  : {label}")
-    print(f"  ending : {np.datetime_as_string(time_stamp, unit='D')}")
+    if month is not None and year is not None and is_climatology_year(year):
+        print(f"  period : {MONTHS[month - 1]} climatology")
+    else:
+        print(f"  ending : {np.datetime_as_string(time_stamp, unit='D')}")
     print(
         f"  shape  : "
         f"{lat_name}={result.sizes[lat_name]}, {lon_name}={result.sizes[lon_name]}"
@@ -523,10 +546,10 @@ def main():
     plot_wb(result_wb, METHOD, MONTH, WINDOW, YEAR, file_out_wb)
     plot_et0_spei_pr_wb(result_et0, result_spei, result_pr, result_wb, METHOD, MONTH, WINDOW, YEAR, file_out_combo)
 
-    print_summary(file_out_et0, "ET0-{WINDOW}", time_et0, result_et0)
-    print_summary(file_out_spei, f"SPEI-{WINDOW}", time_spei, result_spei)
-    print_summary(file_out_pr, f"P-{WINDOW}", time_pr, result_pr)
-    print_summary(file_out_wb, f"WB-{WINDOW}", time_pr, result_wb)
+    print_summary(file_out_et0, f"ET0-{WINDOW}", time_et0, result_et0, MONTH, YEAR)
+    print_summary(file_out_spei, f"SPEI-{WINDOW}", time_spei, result_spei, MONTH, YEAR)
+    print_summary(file_out_pr, f"P-{WINDOW}", time_pr, result_pr, MONTH, YEAR)
+    print_summary(file_out_wb, f"WB-{WINDOW}", time_wb, result_wb, MONTH, YEAR)
     print(f"Wrote {file_out_combo}")
 
 
