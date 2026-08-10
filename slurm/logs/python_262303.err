@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_new.py", line 102, in <module>
+    main()
+    ~~~~^^
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_new.py", line 38, in main
+    lsm = fSPEI.subset_box(lsm, box).rename({'latitude': 'lat', 'longitude': 'lon'})
+                                ^^^
+NameError: name 'box' is not defined

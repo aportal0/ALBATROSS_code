@@ -1,0 +1,52 @@
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/backends/file_manager.py", line 219, in _acquire_with_cache_info
+    file = self._cache[self._key]
+           ~~~~~~~~~~~^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/backends/lru_cache.py", line 56, in __getitem__
+    value = self._cache[key]
+            ~~~~~~~~~~~^^^^^
+KeyError: [<class 'netCDF4._netCDF4.Dataset'>, ('/home/PERSONALE/alice.portal2/scratch/ERA5-Land/mask/land_sea_mask_Madagascar.nc',), 'r', (('clobber', True), ('diskless', False), ('format', 'NETCDF4'), ('persist', False)), '0f09305a-d2b3-4ef8-92d6-962bddcc7710']
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_new.py", line 101, in <module>
+    main()
+    ~~~~^^
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_new.py", line 31, in main
+    ds_mask = xr.open_dataset(
+        f"{dir_mask}land_sea_mask_{country}.nc"
+    )
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/backends/api.py", line 613, in open_dataset
+    backend_ds = backend.open_dataset(
+        filename_or_obj,
+    ...<2 lines>...
+        **kwargs,
+    )
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/backends/netCDF4_.py", line 771, in open_dataset
+    store = NetCDF4DataStore.open(
+        filename_or_obj,
+    ...<8 lines>...
+        autoclose=autoclose,
+    )
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/backends/netCDF4_.py", line 529, in open
+    return cls(manager, group=group, mode=mode, lock=lock, autoclose=autoclose)
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/backends/netCDF4_.py", line 429, in __init__
+    self.format = self.ds.data_model
+                  ^^^^^^^
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/backends/netCDF4_.py", line 538, in ds
+    return self._acquire()
+           ~~~~~~~~~~~~~^^
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/backends/netCDF4_.py", line 532, in _acquire
+    with self._manager.acquire_context(needs_lock) as root:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/backends/file_manager.py", line 207, in acquire_context
+    file, cached = self._acquire_with_cache_info(needs_lock)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/backends/file_manager.py", line 225, in _acquire_with_cache_info
+    file = self._opener(*self._args, **kwargs)
+  File "src/netCDF4/_netCDF4.pyx", line 2521, in netCDF4._netCDF4.Dataset.__init__
+  File "src/netCDF4/_netCDF4.pyx", line 2158, in netCDF4._netCDF4._ensure_nc_success
+FileNotFoundError: [Errno 2] No such file or directory: '/home/PERSONALE/alice.portal2/scratch/ERA5-Land/mask/land_sea_mask_Madagascar.nc'

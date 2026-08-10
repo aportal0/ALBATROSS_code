@@ -8,7 +8,7 @@ def main():
     dir_pet    = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/ET0/monthly/"
     dir_precip = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/ET0/monthly/"
     dir_out    = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/SPEI/monthly/"
-    dir_mask   = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/mask/"
+    dir_mask   = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/"
 
     year_range = [1993, 2024]
     scales = [1,3,6,12]
@@ -16,7 +16,7 @@ def main():
     cal_start = f"{year_range[0]}-01-01"
     cal_end   = f"{year_range[1]}-12-31"
 
-    method = "Mod-Hargreaves" # "Mod-Hargreaves" or "Hargreaves"
+    method = "Hargreaves" # "Mod-Hargreaves" or "Hargreaves"
     country = "Madagascar"
 
     # --- load ---
@@ -29,12 +29,14 @@ def main():
         chunks={'time': 12}
     )
     ds_mask = xr.open_dataset(
-        f"{dir_mask}land_sea_mask_{country}.nc"
+        f"{dir_mask}land_mask_ERA5-Land.nc"
     )
 
     pet = ds_pet['ET0'].sel(time=slice(cal_start, cal_end))
     precip = ds_precip['precipitation'].sel(time=slice(cal_start, cal_end))
     lsm = ds_mask['lsm']
+    box = fSPEI.boxes_african_countries('madagascar')
+    lsm = fSPEI.subset_box(lsm, box).rename({'latitude': 'lat', 'longitude': 'lon'})
 
     print("Input loaded")
 
@@ -63,7 +65,12 @@ def main():
     print("Balance computed")
 
     # --- mask balance over ocean using land-sea mask ---
-    land_mask = lsm > 0.5
+    lsm_on_balance = lsm.interp(
+        lat=balance.lat,
+        lon=balance.lon,
+        method="nearest"
+    )
+    land_mask = lsm_on_balance > 0.5
     balance = balance.where(land_mask)
     print("Balance masked with land-sea mask")
 

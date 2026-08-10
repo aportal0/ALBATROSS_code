@@ -1,0 +1,31 @@
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_new.py", line 101, in <module>
+    main()
+    ~~~~^^
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_new.py", line 75, in main
+    spei = fSPEI.compute_spei(
+        balance,
+    ...<2 lines>...
+        cal_end=cal_end
+    )
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/functions_spei.py", line 174, in compute_spei
+    arr = accum_stacked.values   # (time, point)
+          ^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/core/dataarray.py", line 803, in values
+    return self.variable.values
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/core/variable.py", line 555, in values
+    return _as_array_or_item(self._data)
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/core/variable.py", line 335, in _as_array_or_item
+    data = np.asarray(data)
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/array/core.py", line 1720, in __array__
+    x = self.compute()
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/base.py", line 392, in compute
+    (result,) = compute(self, traverse=False, **kwargs)
+                ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/base.py", line 769, in compute
+    results = schedule(expr, keys, **kwargs)
+  File "/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py", line 768, in __call__
+    return self.func(*new_argspec)
+           ~~~~~~~~~^^^^^^^^^^^^^^
+numpy._core._exceptions._ArrayMemoryError: Unable to allocate 475. GiB for an array with shape (12, 159, 90, 530, 700) and data type float64

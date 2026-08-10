@@ -4,6 +4,4 @@ Input loaded
 ET0 converted to monthly sum
 Input data aligned
 Balance computed
-Balance masked over ocean
-Saved SPEI-1
-Done
+Balance masked with land-sea mask

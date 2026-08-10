@@ -106,22 +106,85 @@ def hargreaves(ds, Ra=None, tmin_var='tmin', tmax_var='tmax',
 
 
 # ---------------------------------------------------------------- spei
-def _fit_fisk(series):
+import numpy as np
+from scipy.special import gamma
+from scipy.stats import norm
+
+
+def _fit_loglogistic_pwm(series):
+    """
+    Fit a 3-parameter log-logistic distribution using PWMs.
+
+    Returns
+    -------
+    beta, loc, scale
+        beta  = shape
+        loc   = origin/location parameter (gamma0)
+        scale = alpha
+    """
     vals = np.asarray(series, dtype=float)
     vals = vals[np.isfinite(vals)]
 
     if vals.size < 8:
         return np.nan, np.nan, np.nan
 
-    try:
-        c, loc, scale = fisk.fit(vals)
-        if not np.isfinite(c) or not np.isfinite(loc) or not np.isfinite(scale):
-            return np.nan, np.nan, np.nan
-        if c <= 0 or scale <= 0:
-            return np.nan, np.nan, np.nan
-        return c, loc, scale
-    except Exception:
+    vals = np.sort(vals)
+    n = vals.size
+    i = np.arange(1, n + 1, dtype=float)
+
+    # Probability-weighted moments
+    w0 = np.mean(vals)
+
+    if n < 2:
         return np.nan, np.nan, np.nan
+    w1 = np.sum(((i - 1) / (n - 1)) * vals) / n
+
+    if n < 3:
+        return np.nan, np.nan, np.nan
+    w2 = np.sum(((i - 1) * (i - 2) / ((n - 1) * (n - 2))) * vals) / n
+
+    denom = 6.0 * w1 - w0 - 6.0 * w2
+    if not np.isfinite(denom) or np.isclose(denom, 0.0):
+        return np.nan, np.nan, np.nan
+
+    beta = (2.0 * w1 - w0) / denom
+    if not np.isfinite(beta) or beta <= 1.0:
+        return np.nan, np.nan, np.nan
+
+    g1 = gamma(1.0 + 1.0 / beta)
+    g2 = gamma(1.0 - 1.0 / beta)
+    gg = g1 * g2
+
+    if not np.isfinite(gg) or np.isclose(gg, 0.0):
+        return np.nan, np.nan, np.nan
+
+    scale = ((w0 - 2.0 * w1) * beta) / gg
+    loc = w0 - scale * gg
+
+    if not np.isfinite(scale) or not np.isfinite(loc) or scale <= 0.0:
+        return np.nan, np.nan, np.nan
+
+    return beta, loc, scale
+
+
+def _loglogistic_cdf(x, beta, loc, scale):
+    """
+    CDF of the 3-parameter log-logistic distribution:
+        F(x) = [1 + (scale / (x - loc))**beta]**-1,  for x > loc
+        F(x) = 0,                                    for x <= loc
+    """
+    x = np.asarray(x, dtype=float)
+    out = np.full(x.shape, np.nan, dtype=float)
+
+    finite = np.isfinite(x)
+    out[finite & (x <= loc)] = 0.0
+
+    valid = finite & (x > loc)
+    if np.any(valid):
+        z = (scale / (x[valid] - loc)) ** beta
+        out[valid] = 1.0 / (1.0 + z)
+
+    return out
 
 
 def _spei_1d(values, months, cal_mask):
@@ -131,8 +194,8 @@ def _spei_1d(values, months, cal_mask):
         idx = (months == m)
         idx_cal = idx & cal_mask
 
-        c, loc, scale = _fit_fisk(values[idx_cal])
-        if np.isnan(c):
+        beta, loc, scale = _fit_loglogistic_pwm(values[idx_cal])
+        if np.isnan(beta):
             continue
 
         vals = values[idx]
@@ -141,8 +204,8 @@ def _spei_1d(values, months, cal_mask):
             continue
 
         probs = np.full(vals.shape, np.nan, dtype=float)
-        probs[good] = fisk.cdf(vals[good], c, loc=loc, scale=scale)
-        probs = np.clip(probs, 1e-8, 1 - 1e-8)
+        probs[good] = _loglogistic_cdf(vals[good], beta, loc, scale)
+        probs = np.clip(probs, 1e-8, 1.0 - 1e-8)
 
         out[idx] = norm.ppf(probs)
 

@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_new.py", line 103, in <module>
+    main()
+    ~~~~^^
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_new.py", line 68, in main
+    lsm_aligned, balance_aligned = xr.align(lsm, balance, join='exact')
+                                   ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/structure/alignment.py", line 967, in align
+    aligner.align()
+    ~~~~~~~~~~~~~^^
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/structure/alignment.py", line 659, in align
+    self.align_indexes()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/structure/alignment.py", line 473, in align_indexes
+    raise AlignmentError(
+    ...<9 lines>...
+    )
+xarray.structure.alignment.AlignmentError: cannot align objects with join='exact' where index/labels/sizes are not equal along these coordinates (dimensions): 'lat' ('lat',)
