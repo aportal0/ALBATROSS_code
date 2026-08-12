@@ -29,8 +29,8 @@ VAR_SPEI = "SPEI"      # change if your variable is named differently
 VAR_PR = "precipitation"
 VAR_WB = "balance"
 
-METHOD = "H"             # "H" or "MH"
-MONTH = 11
+METHOD = "MH"             # "H" or "MH"
+MONTH = 12
 WINDOW = 3
 YEAR = "clim"               # year (int) or "clim" (str)
 COUNTRY = "Madagascar"
