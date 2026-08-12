@@ -3,8 +3,10 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 from scipy.stats import fisk, norm
+from scipy.special import gamma
 import os
 from multiprocessing import Pool
+
 
 
 def boxes_african_countries(name_country):
@@ -106,42 +108,31 @@ def hargreaves(ds, Ra=None, tmin_var='tmin', tmax_var='tmax',
 
 
 # ---------------------------------------------------------------- spei
-import numpy as np
-from scipy.special import gamma
-from scipy.stats import norm
-
-
 def _fit_loglogistic_pwm(series):
     """
-    Fit a 3-parameter log-logistic distribution using PWMs.
+    Fit a 3-parameter log-logistic distribution using unbiased PWMs.
 
     Returns
     -------
     beta, loc, scale
         beta  = shape
-        loc   = origin/location parameter (gamma0)
-        scale = alpha
+        loc   = origin/location parameter
+        scale = scale parameter
     """
     vals = np.asarray(series, dtype=float)
     vals = vals[np.isfinite(vals)]
 
-    if vals.size < 8:
+    if vals.size < 3:
         return np.nan, np.nan, np.nan
 
     vals = np.sort(vals)
     n = vals.size
     i = np.arange(1, n + 1, dtype=float)
 
-    # Probability-weighted moments
+    # Unbiased PWMs
     w0 = np.mean(vals)
-
-    if n < 2:
-        return np.nan, np.nan, np.nan
-    w1 = np.sum(((i - 1) / (n - 1)) * vals) / n
-
-    if n < 3:
-        return np.nan, np.nan, np.nan
-    w2 = np.sum(((i - 1) * (i - 2) / ((n - 1) * (n - 2))) * vals) / n
+    w1 = np.sum(((i - 1.0) / (n - 1.0)) * vals) / n
+    w2 = np.sum((((i - 1.0) * (i - 2.0)) / ((n - 1.0) * (n - 2.0))) * vals) / n
 
     denom = 6.0 * w1 - w0 - 6.0 * w2
     if not np.isfinite(denom) or np.isclose(denom, 0.0):
@@ -151,10 +142,7 @@ def _fit_loglogistic_pwm(series):
     if not np.isfinite(beta) or beta <= 1.0:
         return np.nan, np.nan, np.nan
 
-    g1 = gamma(1.0 + 1.0 / beta)
-    g2 = gamma(1.0 - 1.0 / beta)
-    gg = g1 * g2
-
+    gg = gamma(1.0 + 1.0 / beta) * gamma(1.0 - 1.0 / beta)
     if not np.isfinite(gg) or np.isclose(gg, 0.0):
         return np.nan, np.nan, np.nan
 
@@ -170,19 +158,20 @@ def _fit_loglogistic_pwm(series):
 def _loglogistic_cdf(x, beta, loc, scale):
     """
     CDF of the 3-parameter log-logistic distribution:
-        F(x) = [1 + (scale / (x - loc))**beta]**-1,  for x > loc
-        F(x) = 0,                                    for x <= loc
+        F(x) = [1 + (scale / (x - loc))**beta]**-1, for x > loc
     """
     x = np.asarray(x, dtype=float)
     out = np.full(x.shape, np.nan, dtype=float)
 
     finite = np.isfinite(x)
-    out[finite & (x <= loc)] = 0.0
-
     valid = finite & (x > loc)
+
     if np.any(valid):
         z = (scale / (x[valid] - loc)) ** beta
         out[valid] = 1.0 / (1.0 + z)
+
+    # Numerical lower bound for x <= loc
+    out[finite & (x <= loc)] = np.finfo(float).tiny
 
     return out
 
@@ -194,8 +183,14 @@ def _spei_1d(values, months, cal_mask):
         idx = (months == m)
         idx_cal = idx & cal_mask
 
-        beta, loc, scale = _fit_loglogistic_pwm(values[idx_cal])
-        if np.isnan(beta):
+        cal_vals = values[idx_cal]
+        cal_vals = cal_vals[np.isfinite(cal_vals)]
+
+        if cal_vals.size < 8:
+            continue
+
+        beta, loc, scale = _fit_loglogistic_pwm(cal_vals)
+        if not np.isfinite(beta):
             continue
 
         vals = values[idx]
@@ -205,9 +200,14 @@ def _spei_1d(values, months, cal_mask):
 
         probs = np.full(vals.shape, np.nan, dtype=float)
         probs[good] = _loglogistic_cdf(vals[good], beta, loc, scale)
-        probs = np.clip(probs, 1e-8, 1.0 - 1e-8)
 
-        out[idx] = norm.ppf(probs)
+        # Keep finite and bounded for inverse normal transform
+        eps = 1e-8
+        probs[good] = np.clip(probs[good], eps, 1.0 - eps)
+
+        out_month = np.full(vals.shape, np.nan, dtype=float)
+        out_month[good] = norm.ppf(probs[good])
+        out[idx] = out_month
 
     return out
 
@@ -225,34 +225,34 @@ def _spei_point_worker(args):
 def compute_spei(balance, scale, cal_start, cal_end,
                  time_dim='time', lat_dim='lat', lon_dim='lon',
                  n_workers=None, chunk_size=200):
-    # --- rolling accumulation ---
+    # Rolling accumulation of climatic water balance
     accum = balance.rolling({time_dim: scale}, min_periods=scale).sum()
+
     months = accum[time_dim].dt.month.values
     cal_mask = (
         (accum[time_dim] >= np.datetime64(cal_start)) &
         (accum[time_dim] <= np.datetime64(cal_end))
     ).values
-    # --- stack space to a single point dimension ---
+
+    # Stack space into one dimension
     accum_stacked = accum.stack(point=(lat_dim, lon_dim))
-    arr = accum_stacked.values   # (time, point)
-    # --- keep only points with at least some valid data ---
+    arr = accum_stacked.values  # shape: (time, point)
+
     valid_points = np.isfinite(arr).any(axis=0)
-    valid_idx = np.where(valid_points)[0]
     arr_valid = arr[:, valid_points]
     out_valid = np.full(arr_valid.shape, np.nan, dtype=np.float32)
+
     min_valid = max(8, scale + 6)
-    # --- number of workers ---
+
     if n_workers is None:
         n_workers = int(os.environ.get("SLURM_CPUS_PER_TASK", "1"))
-    # --- serial fallback ---
+
     if n_workers <= 1:
         for k in range(arr_valid.shape[1]):
             vals = arr_valid[:, k]
             if np.isfinite(vals).sum() < min_valid:
                 continue
             out_valid[:, k] = _spei_1d(vals, months, cal_mask)
-            if k % 100 == 0:
-                print(f"SPEI-{scale}: {k}/{arr_valid.shape[1]} points")
     else:
         tasks = [
             (k, arr_valid[:, k], months, cal_mask, min_valid)
@@ -261,18 +261,22 @@ def compute_spei(balance, scale, cal_start, cal_end,
         with Pool(processes=n_workers) as pool:
             for k, out in pool.imap_unordered(_spei_point_worker, tasks, chunksize=chunk_size):
                 out_valid[:, k] = out
-    # --- rebuild full output ---
+
     out = np.full(arr.shape, np.nan, dtype=np.float32)
     out[:, valid_points] = out_valid
+
     spei = xr.DataArray(
         out,
         dims=accum_stacked.dims,
         coords=accum_stacked.coords,
-        name=f"SPEI",
-    ).unstack('point')
-    spei.attrs['units'] = '-'
-    spei.attrs['scale_months'] = scale
-    spei.attrs['calibration_start'] = cal_start
-    spei.attrs['calibration_end'] = cal_end
+        name="SPEI",
+    ).unstack("point")
+
+    spei.attrs["units"] = "-"
+    spei.attrs["scale_months"] = scale
+    spei.attrs["calibration_start"] = cal_start
+    spei.attrs["calibration_end"] = cal_end
+
     return spei
+
 

@@ -31,8 +31,8 @@ VAR_WB = "balance"
 
 METHOD = "MH"             # "H" or "MH"
 MONTH = 12
-WINDOW = 3
-YEAR = "clim"               # year (int) or "clim" (str)
+WINDOW = 1
+YEAR = 2023               # year (int) or "clim" (str)
 COUNTRY = "Madagascar"
 
 PATH_ET0 = Path("/home/alice/Desktop/UniBo/data/ERA5-Land/ET0/monthly/")
