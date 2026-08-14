@@ -3,8 +3,8 @@
 #SBATCH --output=logs/python_%j.out
 #SBATCH --error=logs/python_%j.err
 #SBATCH --time=04:00:00
-#SBATCH --cpus-per-task=2
-#SBATCH --mem=8G
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=32G
 
 # Directory
 dir_code="/home/PERSONALE/alice.portal2/ALBATROSS_code/python/"
@@ -18,4 +18,8 @@ source ~/anaconda3/etc/profile.d/conda.sh
 conda activate xesmf_env
 
 # Run job
-python ${dir_code}compute_spei_debug.py
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+python ${dir_code}compute_spei.py

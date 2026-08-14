@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import xarray as xr
-import functions_spei as fSPEI
+import functions_spei_debug as fSPEI
 
 
 def main():
@@ -11,7 +11,8 @@ def main():
     dir_mask   = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/"
 
     year_range = [1993, 2024]
-    scales = [1,3,6,12]
+    scale = 1
+    month = 1
 
     cal_start = f"{year_range[0]}-01-01"
     cal_end   = f"{year_range[1]}-12-31"
@@ -64,42 +65,33 @@ def main():
     balance.attrs['units'] = 'mm'
     print("Balance computed")
 
-    # --- mask balance over ocean using land-sea mask ---
-    lsm_on_balance = lsm.interp(
-        lat=balance.lat,
-        lon=balance.lon,
-        method="nearest"
+    # --- balance in one exemplary grid point ---
+    balance_gp = balance.sel(lat=-18.1, lon=49.1, method="nearest")
+    balance_dates = balance_gp.time          # matching monthly dates
+    balance_accum = fSPEI.rolling_water_balance(balance_gp, scale=scale)
+    print("Balance grid-point selected")
+
+    # --- compute SPEI for grid popint ---
+    diag = fSPEI.monthwise_spei_diagnostic(
+        values=balance_accum,
+        dates=balance_dates,
+        month=month,
+        cal_start=cal_start,
+        cal_end=cal_end,
     )
-    land_mask = lsm_on_balance > 0.5
-    balance = balance.where(land_mask)
-    print("Balance masked with land-sea mask")
-
-    # --- compute SPEI for selected scales ---
-    os.makedirs(dir_out, exist_ok=True)
-
-    for scale in scales:
-        spei = fSPEI.compute_spei(
-            balance,
-            scale=scale,
-            cal_start=cal_start,
-            cal_end=cal_end
-        )
-        spei.to_netcdf(
-            os.path.join(
-                dir_out,
-                f'SPEI_{method}_{scale}m_{year_range[0]}-{year_range[1]}_{country}.nc'
-            )
-        )
-        print(f"Saved SPEI-{scale}")
-
-    # --- save water balance too ---
-    balance.to_netcdf(
-        os.path.join(
-            dir_out,
-            f'water-balance_{method}_monthly_{year_range[0]}-{year_range[1]}_{country}.nc'
-        )
-    )
-
+    print(diag)
+    fit_info = fSPEI.inspect_loglogistic_fit(diag["sample"]["cal_values"])
+    fit = {
+        "beta": abs(fit_info["beta"]),
+        "loc": fit_info["loc"],
+        "scale": fit_info["scale"],
+    }
+    print(fit) 
+    fSPEI.plot_fit_diagnostic(diag["sample"]["cal_values"], fit, output_path=f"mon{month}_fit_diagnostic.png")
+#     print()
+#     print(diag["fit"])
+#     print("cal mean:", diag["cal_mean"])
+#     print("cal std:", diag["cal_std"])
     print("Done")
 
 

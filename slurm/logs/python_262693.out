@@ -4,9 +4,5 @@ Input loaded
 ET0 converted to monthly sum
 Input data aligned
 Balance computed
-Balance masked with land-sea mask
-Saved SPEI-1
-Saved SPEI-3
-Saved SPEI-6
-Saved SPEI-12
-Done
+Balance grid-point selected
+None

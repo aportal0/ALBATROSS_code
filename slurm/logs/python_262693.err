@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_debug.py", line 90, in <module>
+    main()
+    ~~~~^^
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_debug.py", line 84, in main
+    print("cal mean:", diag["cal_mean"])
+                       ~~~~^^^^^^^^^^^^
+KeyError: 'cal_mean'

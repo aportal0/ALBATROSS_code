@@ -1,0 +1,23 @@
+Loading atmos/cdo/2.3.0
+  Loading requirement: ucx/1.13.1 mpi/openmpi/4.1.4 astro/hdf5/1.12.2
+Input loaded
+ET0 converted to monthly sum
+Input data aligned
+Balance computed
+Balance grid-point selected
+n      = 32
+min    = 3.5705749845408548
+max    = 997.2953621546426
+mean   = 367.755826551727
+w0     = 367.755826551727
+w1     = 254.90569733246545
+w2     = 197.7622038400159
+denom  = -24.89486559702982
+beta   = -5.706219523842393
+g1     = 1.1375384309386354
+g2     = 0.9251239499115631
+gg     = 1.052364046406152
+scale  = 770.2660110883737
+loc    = -442.84442968636
+beta > 1 ? False
+scale > 0 ? True

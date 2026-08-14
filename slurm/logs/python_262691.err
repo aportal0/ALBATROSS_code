@@ -1,0 +1,45 @@
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/pandas/core/indexes/base.py", line 3641, in get_loc
+    return self._engine.get_loc(casted_key)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "pandas/_libs/index.pyx", line 168, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/index.pyx", line 197, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 1761, in pandas._libs.hashtable.Float64HashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 1785, in pandas._libs.hashtable.Float64HashTable.get_item
+KeyError: -18.1
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/core/indexes.py", line 878, in sel
+    indexer = self.index.get_loc(label_value)
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/pandas/core/indexes/base.py", line 3648, in get_loc
+    raise KeyError(key) from err
+KeyError: -18.1
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_debug.py", line 90, in <module>
+    main()
+    ~~~~^^
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_debug.py", line 69, in main
+    balance_gp = balance.sel(lon=-18.1, lat=49.1)
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/core/dataarray.py", line 1729, in sel
+    ds = self._to_temp_dataset().sel(
+        indexers=indexers,
+    ...<3 lines>...
+        **indexers_kwargs,
+    )
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/core/dataset.py", line 3073, in sel
+    query_results = map_index_queries(
+        self, indexers=indexers, method=method, tolerance=tolerance
+    )
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/core/indexing.py", line 219, in map_index_queries
+    results.append(index.sel(labels, **options))
+                   ~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/.local/lib/python3.14/site-packages/xarray/core/indexes.py", line 880, in sel
+    raise KeyError(
+    ...<2 lines>...
+    ) from e
+KeyError: "not all values found in index 'lon'. Try setting the `method` keyword argument (example: method='nearest')."

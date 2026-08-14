@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_debug.py", line 99, in <module>
+    main()
+    ~~~~^^
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_debug.py", line 90, in main
+    fSPEI.plot_fit_diagnostic(diag["sample"]["cal_values"], fit, output_path=f"mon{month}_fit_diagnostic.png")
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/functions_spei_debug.py", line 296, in plot_fit_diagnostic
+    p_fit = loglogistic_cdf(x_grid, fit["beta"], fit["loc"], fit["scale"])
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/functions_spei_debug.py", line 220, in loglogistic_cdf
+    out[valid] = z / (1.0 + z)
+    ^^^
+NameError: name 'out' is not defined. Did you mean: 'oct'?

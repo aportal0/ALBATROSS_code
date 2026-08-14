@@ -1,0 +1,10 @@
+/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_debug.py:86: RuntimeWarning: All-NaN slice encountered
+  print("p min/max:", np.nanmin(p), np.nanmax(p))
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_debug.py", line 105, in <module>
+    main()
+    ~~~~^^
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_debug.py", line 88, in main
+    z = norm.ppf(np.clip(p, 1e-8, 1 - 1e-8))
+        ^^^^
+NameError: name 'norm' is not defined

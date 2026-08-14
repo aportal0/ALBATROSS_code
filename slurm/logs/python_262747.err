@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_debug.py", line 100, in <module>
+    main()
+    ~~~~^^
+  File "/home/PERSONALE/alice.portal2/ALBATROSS_code/python/compute_spei_debug.py", line 91, in main
+    print(diag["sample"]["spei_cal"])
+          ~~~~~~~~~~~~~~^^^^^^^^^^^^
+KeyError: 'spei_cal'

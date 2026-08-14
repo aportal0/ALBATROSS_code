@@ -109,16 +109,6 @@ def hargreaves(ds, Ra=None, tmin_var='tmin', tmax_var='tmax',
 
 # ---------------------------------------------------------------- spei
 def _fit_loglogistic_pwm(series):
-    """
-    Fit a 3-parameter log-logistic distribution using unbiased PWMs.
-
-    Returns
-    -------
-    beta, loc, scale
-        beta  = shape
-        loc   = origin/location parameter
-        scale = scale parameter
-    """
     vals = np.asarray(series, dtype=float)
     vals = vals[np.isfinite(vals)]
 
@@ -129,10 +119,9 @@ def _fit_loglogistic_pwm(series):
     n = vals.size
     i = np.arange(1, n + 1, dtype=float)
 
-    # Unbiased PWMs
     w0 = np.mean(vals)
-    w1 = np.sum(((i - 1.0) / (n - 1.0)) * vals) / n
-    w2 = np.sum((((i - 1.0) * (i - 2.0)) / ((n - 1.0) * (n - 2.0))) * vals) / n
+    w1 = np.sum(((i - 1) / (n - 1)) * vals) / n
+    w2 = np.sum(((i - 1) * (i - 2) / ((n - 1) * (n - 2))) * vals) / n
 
     denom = 6.0 * w1 - w0 - 6.0 * w2
     if not np.isfinite(denom) or np.isclose(denom, 0.0):
@@ -156,22 +145,16 @@ def _fit_loglogistic_pwm(series):
 
 
 def _loglogistic_cdf(x, beta, loc, scale):
-    """
-    CDF of the 3-parameter log-logistic distribution:
-        F(x) = [1 + (scale / (x - loc))**beta]**-1, for x > loc
-    """
     x = np.asarray(x, dtype=float)
     out = np.full(x.shape, np.nan, dtype=float)
 
     finite = np.isfinite(x)
-    valid = finite & (x > loc)
+    out[finite & (x <= loc)] = 0.0
 
+    valid = finite & (x > loc)
     if np.any(valid):
         z = (scale / (x[valid] - loc)) ** beta
         out[valid] = 1.0 / (1.0 + z)
-
-    # Numerical lower bound for x <= loc
-    out[finite & (x <= loc)] = np.finfo(float).tiny
 
     return out
 
@@ -190,7 +173,7 @@ def _spei_1d(values, months, cal_mask):
             continue
 
         beta, loc, scale = _fit_loglogistic_pwm(cal_vals)
-        if not np.isfinite(beta):
+        if np.isnan(beta):
             continue
 
         vals = values[idx]
@@ -200,10 +183,7 @@ def _spei_1d(values, months, cal_mask):
 
         probs = np.full(vals.shape, np.nan, dtype=float)
         probs[good] = _loglogistic_cdf(vals[good], beta, loc, scale)
-
-        # Keep finite and bounded for inverse normal transform
-        eps = 1e-8
-        probs[good] = np.clip(probs[good], eps, 1.0 - eps)
+        probs[good] = np.clip(probs[good], 1e-8, 1.0 - 1e-8)
 
         out_month = np.full(vals.shape, np.nan, dtype=float)
         out_month[good] = norm.ppf(probs[good])
