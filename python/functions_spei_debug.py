@@ -158,6 +158,7 @@ def inspect_loglogistic_fit(series):
         "scale": scale, "loc": loc
     }
 
+    
 def fit_loglogistic_pwm_debug(series):
     x = np.asarray(series, dtype=float)
     x = x[np.isfinite(x)]
@@ -179,11 +180,12 @@ def fit_loglogistic_pwm_debug(series):
 
     beta = (2.0 * w1 - w0) / denom
     if not np.isfinite(beta):
-        return np.nan, np.nan, np.nan
+        return None
 
-    beta = abs(beta)
+    g1 = gamma(1.0 + 1.0 / beta)
+    g2 = gamma(1.0 - 1.0 / beta)
+    gg = g1 * g2
 
-    gg = gamma(1.0 + 1.0 / beta) * gamma(1.0 - 1.0 / beta)
     if not np.isfinite(gg) or np.isclose(gg, 0.0):
         return None
 
@@ -207,6 +209,7 @@ def fit_loglogistic_pwm_debug(series):
     }
 
 
+
 def loglogistic_cdf(x, beta, loc, scale):
     x = np.asarray(x, dtype=float)
     p = np.full(x.shape, np.nan, dtype=float)
@@ -217,7 +220,7 @@ def loglogistic_cdf(x, beta, loc, scale):
     valid = finite & (x > loc)
     if np.any(valid):
         z = ((x[valid] - loc) / scale) ** beta
-        out[valid] = z / (1.0 + z)
+        p[valid] = z / (1.0 + z)
 
     return p
 
@@ -307,3 +310,40 @@ def plot_fit_diagnostic(cal_values, fit, output_path="fit_diagnostic.png"):
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
 
     plt.close()
+
+
+def plot_spei_histogram(z_cal, month=None, output_path="spei_histogram.png"):
+    z_cal = np.asarray(z_cal, dtype=float)
+    z_cal = z_cal[np.isfinite(z_cal)]
+
+    if z_cal.size == 0:
+        raise ValueError("No finite SPEI values to plot.")
+
+    # Bins: <= -2.0, then 0.5 steps, then >= 2.0
+    bins = np.array([
+        -np.inf, -2.0, -1.5, -1.0, -0.5,
+         0.0,   0.5,  1.0,  1.5,  2.0, np.inf
+    ])
+
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.hist(z_cal, bins=bins, density=True, alpha=0.7, edgecolor="black")
+
+    ax.axvline(np.nanmean(z_cal), color="red", linestyle="--",
+               label=f"mean={np.nanmean(z_cal):.2f}")
+    ax.axvline(0.0, color="black", linestyle=":")
+
+    ax.set_title(f"SPEI calibration distribution month={month}")
+    ax.set_xlabel("SPEI")
+    ax.set_ylabel("Density")
+
+    # Label the outer bins as inclusive tails
+    ax.set_xticks([-2.5,-2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5])
+    ax.set_xticklabels(["-inf", "<=-2.0", "-1.5", "-1.0", "-0.5",
+                        "0.0", "0.5", "1.0", "1.5", ">=2.0", "+inf"])
+
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+

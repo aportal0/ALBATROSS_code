@@ -12,7 +12,7 @@ def main():
 
     year_range = [1993, 2024]
     scale = 1
-    month = 1
+    month = 7
 
     cal_start = f"{year_range[0]}-01-01"
     cal_end   = f"{year_range[1]}-12-31"
@@ -88,10 +88,7 @@ def main():
     }
     print(fit) 
     fSPEI.plot_fit_diagnostic(diag["sample"]["cal_values"], fit, output_path=f"mon{month}_fit_diagnostic.png")
-#     print()
-#     print(diag["fit"])
-#     print("cal mean:", diag["cal_mean"])
-#     print("cal std:", diag["cal_std"])
+    fSPEI.plot_spei_histogram(diag["spei_cal"], month, output_path=f"mon{month}_spei_histogram.png")
     print("Done")
 
 
