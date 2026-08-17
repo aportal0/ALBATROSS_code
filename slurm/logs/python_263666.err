@@ -1,0 +1,118 @@
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/xesmf/backend.py:57: UserWarning: Latitude is outside of [-90, 90]
+  warnings.warn('Latitude is outside of [-90, 90]')
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)
+/home/PERSONALE/alice.portal2/anaconda3/envs/xesmf_env/lib/python3.14/site-packages/dask/_task_spec.py:768: RuntimeWarning: invalid value encountered in power
+  return self.func(*new_argspec)

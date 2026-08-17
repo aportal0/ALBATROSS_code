@@ -18,4 +18,4 @@ source ~/anaconda3/etc/profile.d/conda.sh
 conda activate xesmf_env
 
 # Run job
-python ${dir_code}compute_spei_debug.py
+python ${dir_code}compute_et0.py
