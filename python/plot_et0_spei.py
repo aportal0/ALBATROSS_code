@@ -31,8 +31,8 @@ VAR_WB = "balance"
 
 METHOD = "MH"             # "H" or "MH"
 MONTH = 12
-WINDOW = 1
-YEAR = 2023               # year (int) or "clim" (str)
+WINDOWS = [1,3,6,12]
+YEAR = 2022             # year (int) or "clim" (str)
 COUNTRY = "Madagascar"
 
 PATH_ET0 = Path("/home/alice/Desktop/UniBo/data/ERA5-Land/ET0/monthly/")
@@ -230,8 +230,8 @@ def get_color_settings_et0():
     vmin, vmax = 0, 200
     levels = MaxNLocator(nbins=10).tick_values(vmin, vmax)
 
-    cmap = plt.colormaps["YlGnBu"].copy()
-    cmap.set_over("purple")
+    cmap = plt.colormaps["YlOrRd"].copy()
+    cmap.set_over("#3e0000")
 
     norm = BoundaryNorm(levels, ncolors=cmap.N, clip=False)
     return cmap, norm
@@ -246,8 +246,8 @@ def get_color_settings_spei():
 
 
 def get_color_settings_pr():
-    vmin, vmax = 0, 400
-    levels = MaxNLocator(nbins=8).tick_values(vmin, vmax)
+    vmin, vmax = 0, 500
+    levels = MaxNLocator(nbins=10).tick_values(vmin, vmax)
     cmap = plt.colormaps["Blues"].copy()
     cmap.set_over("k")
     norm = BoundaryNorm(levels, ncolors=cmap.N, clip=False)
@@ -524,33 +524,34 @@ def print_summary(file_out, label, time_stamp, result, month=None, year=None):
 def main():
     PATH_OUT.mkdir(parents=True, exist_ok=True)
 
-    file_out_et0 = build_output_file(VAR_ET0, COUNTRY, METHOD, WINDOW, YEAR, MONTH)
-    file_out_spei = build_output_file(VAR_SPEI, COUNTRY, METHOD, WINDOW, YEAR, MONTH)
-    file_out_pr = build_output_file(VAR_PR, COUNTRY, METHOD, WINDOW, YEAR, MONTH)
-    file_out_wb = build_output_file(VAR_WB, COUNTRY, METHOD, WINDOW, YEAR, MONTH)
-    file_out_combo = build_output_file_combo(COUNTRY, METHOD, WINDOW, YEAR, MONTH)
-
-    da_et0 = load_var(VAR_ET0, COUNTRY, METHOD, WINDOW)
-    da_spei = load_var(VAR_SPEI, COUNTRY, METHOD, WINDOW)
-    da_pr = load_var(VAR_PR, COUNTRY, METHOD, WINDOW)
-    da_wb = load_var(VAR_WB, COUNTRY, METHOD, WINDOW)
-
-    result_et0, time_et0 = window_mean_or_sum_ending_month(da_et0, MONTH, WINDOW, YEAR, "mean")
-    result_spei, time_spei = select_month_year(da_spei, MONTH, YEAR)
-    result_pr, time_pr = window_mean_or_sum_ending_month(da_pr, MONTH, WINDOW, YEAR, "mean")
-    result_wb, time_wb = window_mean_or_sum_ending_month(da_wb, MONTH, WINDOW, YEAR, "mean")
-
-    plot_et0(result_et0, METHOD, MONTH, WINDOW, YEAR, file_out_et0)
-    plot_spei(result_spei, METHOD, MONTH, WINDOW, YEAR, file_out_spei)
-    plot_pr(result_pr, MONTH, WINDOW, YEAR, file_out_pr)
-    plot_wb(result_wb, METHOD, MONTH, WINDOW, YEAR, file_out_wb)
-    plot_et0_spei_pr_wb(result_et0, result_spei, result_pr, result_wb, METHOD, MONTH, WINDOW, YEAR, file_out_combo)
-
-    print_summary(file_out_et0, f"ET0-{WINDOW}", time_et0, result_et0, MONTH, YEAR)
-    print_summary(file_out_spei, f"SPEI-{WINDOW}", time_spei, result_spei, MONTH, YEAR)
-    print_summary(file_out_pr, f"P-{WINDOW}", time_pr, result_pr, MONTH, YEAR)
-    print_summary(file_out_wb, f"WB-{WINDOW}", time_wb, result_wb, MONTH, YEAR)
-    print(f"Wrote {file_out_combo}")
+    for window in WINDOWS:
+        file_out_et0 = build_output_file(VAR_ET0, COUNTRY, METHOD, window, YEAR, MONTH)
+        file_out_spei = build_output_file(VAR_SPEI, COUNTRY, METHOD, window, YEAR, MONTH)
+        file_out_pr = build_output_file(VAR_PR, COUNTRY, METHOD, window, YEAR, MONTH)
+        file_out_wb = build_output_file(VAR_WB, COUNTRY, METHOD, window, YEAR, MONTH)
+        file_out_combo = build_output_file_combo(COUNTRY, METHOD, window, YEAR, MONTH)
+    
+        da_et0 = load_var(VAR_ET0, COUNTRY, METHOD, window)
+        da_spei = load_var(VAR_SPEI, COUNTRY, METHOD, window)
+        da_pr = load_var(VAR_PR, COUNTRY, METHOD, window)
+        da_wb = load_var(VAR_WB, COUNTRY, METHOD, window)
+    
+        result_et0, time_et0 = window_mean_or_sum_ending_month(da_et0, MONTH, window, YEAR, "mean")
+        result_spei, time_spei = select_month_year(da_spei, MONTH, YEAR)
+        result_pr, time_pr = window_mean_or_sum_ending_month(da_pr, MONTH, window, YEAR, "mean")
+        result_wb, time_wb = window_mean_or_sum_ending_month(da_wb, MONTH, window, YEAR, "mean")
+    
+        plot_et0(result_et0, METHOD, MONTH, window, YEAR, file_out_et0)
+        plot_spei(result_spei, METHOD, MONTH, window, YEAR, file_out_spei)
+        plot_pr(result_pr, MONTH, window, YEAR, file_out_pr)
+        plot_wb(result_wb, METHOD, MONTH, window, YEAR, file_out_wb)
+        plot_et0_spei_pr_wb(result_et0, result_spei, result_pr, result_wb, METHOD, MONTH, window, YEAR, file_out_combo)
+    
+        print_summary(file_out_et0, f"ET0-{window}", time_et0, result_et0, MONTH, YEAR)
+        print_summary(file_out_spei, f"SPEI-{window}", time_spei, result_spei, MONTH, YEAR)
+        print_summary(file_out_pr, f"P-{window}", time_pr, result_pr, MONTH, YEAR)
+        print_summary(file_out_wb, f"WB-{window}", time_wb, result_wb, MONTH, YEAR)
+        print(f"Wrote {file_out_combo}")
 
 
 if __name__ == "__main__":

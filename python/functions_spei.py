@@ -85,7 +85,7 @@ def hargreaves_modified(ds, Ra=None, tmin_var='tmin', tmax_var='tmax',
     Ra_mm  = 0.408 * Ra
 
     ET0 = 0.0013 * (tmean + 17.0) * (td_adj ** 0.76) * Ra_mm
-    ET0 = ET0.where(td_adj > 0).clip(min=0)
+    ET0 = ET0.where(td_adj > 0, 0).clip(min=0)
     ET0.name = 'ET0'
     ET0.attrs['units'] = 'mm/day'
     return ET0
