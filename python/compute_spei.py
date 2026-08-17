@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import xarray as xr
-import functions_spei_new as fSPEI
+import functions_spei as fSPEI
 
 
 def main():
@@ -11,12 +11,12 @@ def main():
     dir_mask   = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/"
 
     year_range = [1993, 2024]
-    scales = [1]
+    scales = [1,3,6,12]
 
     cal_start = f"{year_range[0]}-01-01"
     cal_end   = f"{year_range[1]}-12-31"
 
-    method = "Hargreaves" # "Mod-Hargreaves" or "Hargreaves"
+    method = "Mod-Hargreaves" # "Mod-Hargreaves" or "Hargreaves"
     country = "Madagascar"
 
     # --- load ---

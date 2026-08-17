@@ -1,0 +1,9 @@
+Loading atmos/cdo/2.3.0
+  Loading requirement: ucx/1.13.1 mpi/openmpi/4.1.4 astro/hdf5/1.12.2
+Input loaded
+ET0 converted to monthly sum
+Input data aligned
+Balance computed
+Balance masked with land-sea mask
+Saved SPEI-1
+Done
