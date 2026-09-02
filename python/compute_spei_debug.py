@@ -9,10 +9,12 @@ def main():
     dir_precip = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/ET0/monthly/"
     dir_out    = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/SPEI/monthly/"
     dir_mask   = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/"
+    dir_figs   = "/home/PERSONALE/alice.portal2/scratch/figures/SPEI/"
 
     year_range = [1993, 2024]
     scale = 1
-    month = 7
+    month = 12
+    lat_diagn, lon_diagn = -18.1, 49.1
 
     cal_start = f"{year_range[0]}-01-01"
     cal_end   = f"{year_range[1]}-12-31"
@@ -66,7 +68,7 @@ def main():
     print("Balance computed")
 
     # --- balance in one exemplary grid point ---
-    balance_gp = balance.sel(lat=-18.1, lon=49.1, method="nearest")
+    balance_gp = balance.sel(lat=lat_diagn, lon=lon_diagn, method="nearest")
     balance_dates = balance_gp.time          # matching monthly dates
     balance_accum = fSPEI.rolling_water_balance(balance_gp, scale=scale)
     print("Balance grid-point selected")
@@ -87,8 +89,12 @@ def main():
         "scale": fit_info["scale"],
     }
     print(fit) 
-    fSPEI.plot_fit_diagnostic(diag["sample"]["cal_values"], fit, output_path=f"mon{month}_fit_diagnostic.png")
-    fSPEI.plot_spei_histogram(diag["spei_cal"], month, output_path=f"mon{month}_spei_histogram.png")
+    if method=="Mod-Hargreaves":
+        method_label = "MH"
+    elif method=="Hargreaves":
+        method_label = "H"
+    fSPEI.plot_fit_diagnostic(diag["sample"]["cal_values"], fit, output_path=f"{dir_figs}fit_diagnostic_{method_label}_mon{month}_scale{scale}_lat{lat_diagn}lon{lon_diagn}.png")
+    fSPEI.plot_spei_histogram(diag["spei_cal"], month, output_path=f"{dir_figs}spei_histogram_{method_label}_mon{month}_scale{scale}_lat{lat_diagn}lon{lon_diagn}.png")
     print("Done")
 
 

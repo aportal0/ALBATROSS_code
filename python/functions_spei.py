@@ -82,10 +82,10 @@ def hargreaves_modified(ds, Ra=None, tmin_var='tmin', tmax_var='tmax',
 
     tmean  = (tmax + tmin) / 2
     td_adj = (tmax - tmin) - 0.0123 * precip
+    td_safe = xr.where(td_adj < 0, 0, td_adj)
     Ra_mm  = 0.408 * Ra
 
-    ET0 = 0.0013 * (tmean + 17.0) * (td_adj ** 0.76) * Ra_mm
-    ET0 = ET0.where(td_adj > 0, 0).clip(min=0)
+    ET0 = 0.0013 * (tmean + 17.0) * (td_safe ** 0.76) * Ra_mm
     ET0.name = 'ET0'
     ET0.attrs['units'] = 'mm/day'
     return ET0
@@ -172,6 +172,15 @@ def _spei_1d(values, months, cal_mask):
         if cal_vals.size < 8:
             continue
 
+#         # Fit failure diagnostics        
+#         fit = _fit_loglogistic_pwm_diagnostic(cal_vals)
+#         if not fit["ok"]:
+#             print(f"month {m}: fit failed -> {fit['reason']}")
+#             continue
+#         beta = fit["beta"]
+#         loc = fit["loc"]
+#         scale = fit["scale"]
+
         beta, loc, scale = _fit_loglogistic_pwm(cal_vals)
         if np.isnan(beta):
             continue
@@ -190,6 +199,97 @@ def _spei_1d(values, months, cal_mask):
         out[idx] = out_month
 
     return out
+
+
+def _fit_loglogistic_pwm_diagnostic(series):
+    vals = np.asarray(series, dtype=float)
+    vals = vals[np.isfinite(vals)]
+
+    if vals.size < 3:
+        return {
+            "ok": False,
+            "reason": "too_few_values",
+            "beta": np.nan,
+            "loc": np.nan,
+            "scale": np.nan,
+        }
+
+    vals = np.sort(vals)
+    n = vals.size
+    i = np.arange(1, n + 1, dtype=float)
+
+    w0 = np.mean(vals)
+    w1 = np.sum(((i - 1) / (n - 1)) * vals) / n
+    w2 = np.sum(((i - 1) * (i - 2) / ((n - 1) * (n - 2)) * vals) / n)
+
+    denom = 6.0 * w1 - w0 - 6.0 * w2
+    if not np.isfinite(denom) or np.isclose(denom, 0.0):
+        return {
+            "ok": False,
+            "reason": "bad_denom",
+            "w0": w0, "w1": w1, "w2": w2, "denom": denom,
+            "beta": np.nan, "loc": np.nan, "scale": np.nan,
+        }
+
+    beta = (2.0 * w1 - w0) / denom
+    if not np.isfinite(beta):
+        return {
+            "ok": False,
+            "reason": "bad_beta",
+            "w0": w0, "w1": w1, "w2": w2, "denom": denom,
+            "beta": beta, "loc": np.nan, "scale": np.nan,
+        }
+
+    g1 = gamma(1.0 + 1.0 / beta)
+    g2 = gamma(1.0 - 1.0 / beta)
+    gg = g1 * g2
+
+    if not np.isfinite(gg) or np.isclose(gg, 0.0):
+        return {
+            "ok": False,
+            "reason": "bad_gamma_product",
+            "w0": w0, "w1": w1, "w2": w2, "denom": denom,
+            "beta": beta, "g1": g1, "g2": g2, "gg": gg,
+            "loc": np.nan, "scale": np.nan,
+        }
+
+    scale = ((w0 - 2.0 * w1) * beta) / gg
+    loc = w0 - scale * gg
+
+    if not np.isfinite(scale) or scale <= 0.0:
+        return {
+            "ok": False,
+            "reason": "bad_scale",
+            "w0": w0, "w1": w1, "w2": w2, "denom": denom,
+            "beta": beta, "g1": g1, "g2": g2, "gg": gg,
+            "loc": loc, "scale": scale,
+        }
+
+    if not np.isfinite(loc):
+        return {
+            "ok": False,
+            "reason": "bad_loc",
+            "w0": w0, "w1": w1, "w2": w2, "denom": denom,
+            "beta": beta, "g1": g1, "g2": g2, "gg": gg,
+            "loc": loc, "scale": scale,
+        }
+
+    return {
+        "ok": True,
+        "reason": "ok",
+        "n": n,
+        "w0": w0,
+        "w1": w1,
+        "w2": w2,
+        "denom": denom,
+        "beta": beta,
+        "g1": g1,
+        "g2": g2,
+        "gg": gg,
+        "loc": loc,
+        "scale": scale,
+    }
+
 
 
 def _spei_point_worker(args):
@@ -220,6 +320,7 @@ def compute_spei(balance, scale, cal_start, cal_end,
 
     valid_points = np.isfinite(arr).any(axis=0)
     arr_valid = arr[:, valid_points]
+    
     out_valid = np.full(arr_valid.shape, np.nan, dtype=np.float32)
 
     min_valid = max(8, scale + 6)
