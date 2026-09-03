@@ -153,8 +153,8 @@ def _loglogistic_cdf(x, beta, loc, scale):
 
     valid = finite & (x > loc)
     if np.any(valid):
-        z = ((x[valid] - loc) / scale) ** beta
-        out[valid] = z / (1.0 + z)
+        z = (scale / (x[valid] - loc)) ** beta
+        out[valid] = 1.0 / (1.0 + z)
 
     return out
 

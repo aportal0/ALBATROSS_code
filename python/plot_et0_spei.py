@@ -17,7 +17,7 @@ import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-from matplotlib.colors import BoundaryNorm
+from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.ticker import MaxNLocator
 
 
@@ -240,8 +240,22 @@ def get_color_settings_et0():
 def get_color_settings_spei():
     levels = np.array([-2.5, -2.0, -1.5, -1.0, -0.5, 0.5, 1.0, 1.5, 2.0, 2.5])
 
-    cmap = plt.colormaps["RdBu"].copy()
+    colors = [
+        "#b30000",  # extreme dry - deep red
+        "#ff7f0e",  # bright orange
+        "#ffb347",  # yellow-orange
+        "#fff7bc",  # pale yellow
+        "#f7f7f7",  # near normal
+        "#d9f0d3",  # light green
+        "#78c679",  # green
+        "#238b45",  # deep green
+        "#08306b"   # deeper blue
+    ]
+
+    cmap = ListedColormap(colors)
     norm = BoundaryNorm(levels, ncolors=cmap.N, clip=False)
+    # cmap = plt.colormaps["RdBu"].copy()
+    # norm = BoundaryNorm(levels, ncolors=cmap.N, clip=False)
     return cmap, norm
 
 
