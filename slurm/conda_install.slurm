@@ -7,8 +7,5 @@
 
 source ~/anaconda3/etc/profile.d/conda.sh
 
-conda create -n climate-indices python=3.11 -y
-conda activate climate-indices
-pip install --upgrade pip setuptools wheel
-pip install climate-indices
+conda create -n xesmf_env --file ~/requirements_xesmf_env.txt
 
