@@ -5,11 +5,13 @@ import functions_spei_debug as fSPEI
 
 
 def main():
-    dir_pet    = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/ET0/monthly/"
-    dir_precip = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/ET0/monthly/"
-    dir_out    = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/SPEI/monthly/"
-    dir_mask   = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/"
-    dir_figs   = "/home/PERSONALE/alice.portal2/scratch/figures/SPEI/"
+    dir_scratch = fSPEI.get_scratch_path()
+
+    dir_pet    = dir_scratch + "ERA5-Land/ET0/monthly/"
+    dir_precip = dir_scratch + "ERA5-Land/ET0/monthly/"
+    dir_out    = dir_scratch + "ERA5-Land/SPEI/monthly/"
+    dir_mask   = dir_scratch + "ERA5-Land/"
+    dir_figs   = dir_scratch + "/figures/SPEI/"
 
     year_range = [1993, 2024]
     scale = 1

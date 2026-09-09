@@ -7,7 +7,17 @@ from scipy.special import gamma
 import os
 from multiprocessing import Pool
 import matplotlib.pyplot as plt
+import socket
 
+
+def get_scratch_path():
+    """Return the scratch root directory based on the current cluster."""
+    hostname = socket.gethostname()
+    if hostname == "ophfe1":
+        return "/home/PERSONALE/alice.portal2/scratch/"
+    elif "ac6" in hostname:
+        return "/ec/res4/scratch/ecme4047/" 
+    return print("Hostname was not recognised")
 
 def boxes_african_countries(name_country):
     boxes = {
@@ -219,7 +229,7 @@ def loglogistic_cdf(x, beta, loc, scale):
 
     valid = finite & (x > loc)
     if np.any(valid):
-        z = ((x[valid] - loc) / scale) ** beta
+        z = (scale / (x[valid] - loc)) ** beta
         p[valid] = z / (1.0 + z)
 
     return p
@@ -297,7 +307,7 @@ def monthwise_spei_diagnostic(values, dates, month, cal_start, cal_end):
 def plot_fit_diagnostic(cal_values, fit, output_path="fit_diagnostic.png"):
     x_emp, p_emp = empirical_plotting_positions(cal_values)
     x_grid = np.linspace(np.nanmin(x_emp), np.nanmax(x_emp), 400)
-    p_fit = loglogistic_cdf(x_grid, fit["beta"], fit["loc"], fit["scale"])
+    p_fit = loglogistic_cdf(x_grid, -fit["beta"], fit["loc"], fit["scale"])
 
     plt.figure(figsize=(6, 4))
     plt.scatter(x_emp, p_emp, s=20, label="Empirical")
