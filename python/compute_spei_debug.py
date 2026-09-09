@@ -86,7 +86,7 @@ def main():
     print(diag)
     fit_info = fSPEI.inspect_loglogistic_fit(diag["sample"]["cal_values"])
     fit = {
-        "beta": abs(fit_info["beta"]),
+        "beta": fit_info["beta"],
         "loc": fit_info["loc"],
         "scale": fit_info["scale"],
     }

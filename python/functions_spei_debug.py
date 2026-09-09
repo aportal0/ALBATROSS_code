@@ -307,7 +307,7 @@ def monthwise_spei_diagnostic(values, dates, month, cal_start, cal_end):
 def plot_fit_diagnostic(cal_values, fit, output_path="fit_diagnostic.png"):
     x_emp, p_emp = empirical_plotting_positions(cal_values)
     x_grid = np.linspace(np.nanmin(x_emp), np.nanmax(x_emp), 400)
-    p_fit = loglogistic_cdf(x_grid, -fit["beta"], fit["loc"], fit["scale"])
+    p_fit = loglogistic_cdf(x_grid, fit["beta"], fit["loc"], fit["scale"])
 
     plt.figure(figsize=(6, 4))
     plt.scatter(x_emp, p_emp, s=20, label="Empirical")
