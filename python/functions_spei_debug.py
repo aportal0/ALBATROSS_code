@@ -19,6 +19,7 @@ def get_scratch_path():
         return "/ec/res4/scratch/ecme4047/" 
     return print("Hostname was not recognised")
 
+
 def boxes_african_countries(name_country):
     boxes = {
         'ghana':     {'lon_min': -4,  'lon_max': 2,  'lat_min': 4,   'lat_max': 12},
@@ -304,25 +305,49 @@ def monthwise_spei_diagnostic(values, dates, month, cal_start, cal_end):
     }
 
 
-def plot_fit_diagnostic(cal_values, fit, output_path="fit_diagnostic.png"):
+def plot_fit_diagnostic(cal_values, fit, scale="None", dates_cal="None", output_path="fit_diagnostic.png"):
     x_emp, p_emp = empirical_plotting_positions(cal_values)
     x_grid = np.linspace(np.nanmin(x_emp), np.nanmax(x_emp), 400)
     p_fit = loglogistic_cdf(x_grid, fit["beta"], fit["loc"], fit["scale"])
 
-    plt.figure(figsize=(6, 4))
-    plt.scatter(x_emp, p_emp, s=20, label="Empirical")
-    plt.plot(x_grid, p_fit, color="red", label="Fitted log-logistic")
-    plt.xlabel("Accumulated water balance")
-    plt.ylabel("CDF")
-    plt.legend()
-    plt.grid(True, alpha=0.3)
+    fig, ax = plt.subplots(figsize=(7, 4))
 
+    if dates_cal is not None:
+        dates_cal = pd.to_datetime(dates_cal)
+        # x_emp e p_emp sono ordinati per valore crescente (empirical_plotting_positions)
+        # ma dates_cal è in ordine temporale.
+        # Dobbiamo riordinare le date corrispondenti ai valori ordinati.
+        cal_values_arr = np.asarray(cal_values, dtype=float)
+        sorted_indices = np.argsort(cal_values_arr, kind='mergesort')
+        # Applica lo stesso ordinamento alle date
+        dates_sorted = dates_cal[sorted_indices]
+        # Filtra solo i valori finiti (come fa empirical_plotting_positions)
+        dates_finite = dates_sorted[np.isfinite(cal_values_arr[sorted_indices])]
+        years = dates_finite.year.values
+        
+        # Scatter senza colormap
+        ax.scatter(x_emp, p_emp, s=50, color="blue", 
+                   edgecolors="black", linewidths=0.5, zorder=5)
+        # Annotate ogni punto con il suo anno
+        for x, y, yr in zip(x_emp, p_emp, years):
+            ax.annotate(str(yr), xy=(x, y), textcoords="offset points", 
+                       xytext=(2, 2), fontsize=5, alpha=0.8, zorder=6)
+    else:
+        ax.scatter(x_emp, p_emp, s=20, color="blue", label="Empirical", zorder=5)
+
+    ax.plot(x_grid, p_fit, color="red", linewidth=2, label="Fitted log-logistic", zorder=4)
+    ax.set_xlabel(f"{scale}-month(s) accumulated water balance")
+    ax.set_ylabel("CDF")
+    ax.legend(loc="lower right")
+    ax.grid(True, alpha=0.3)
+    ax.set_title("Log-logistic CDF fit diagnostic")
+
+    plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
 
-    plt.close()
 
-
-def plot_spei_histogram(z_cal, month=None, output_path="spei_histogram.png"):
+def plot_spei_histogram(z_cal, month=None, scale=None, output_path="spei_histogram.png"):
     z_cal = np.asarray(z_cal, dtype=float)
     z_cal = z_cal[np.isfinite(z_cal)]
 
@@ -342,8 +367,8 @@ def plot_spei_histogram(z_cal, month=None, output_path="spei_histogram.png"):
                label=f"mean={np.nanmean(z_cal):.2f}")
     ax.axvline(0.0, color="black", linestyle=":")
 
-    ax.set_title(f"SPEI calibration distribution month={month}")
-    ax.set_xlabel("SPEI")
+    ax.set_title(f"SPEI-{scale} calibration distribution month={month}")
+    ax.set_xlabel("SPEI-{scale}")
     ax.set_ylabel("Density")
 
     # Label the outer bins as inclusive tails

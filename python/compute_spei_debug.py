@@ -14,14 +14,14 @@ def main():
     dir_figs   = dir_scratch + "/figures/SPEI/"
 
     year_range = [1993, 2024]
-    scale = 1
+    scales = [1,3,6,12]
     month = 12
     lat_diagn, lon_diagn = -18.1, 49.1
 
     cal_start = f"{year_range[0]}-01-01"
     cal_end   = f"{year_range[1]}-12-31"
 
-    method = "Hargreaves" # "Mod-Hargreaves" or "Hargreaves"
+    method = "Mod-Hargreaves" # "Mod-Hargreaves" or "Hargreaves"
     country = "Madagascar"
 
     # --- load ---
@@ -72,31 +72,43 @@ def main():
     # --- balance in one exemplary grid point ---
     balance_gp = balance.sel(lat=lat_diagn, lon=lon_diagn, method="nearest")
     balance_dates = balance_gp.time          # matching monthly dates
-    balance_accum = fSPEI.rolling_water_balance(balance_gp, scale=scale)
     print("Balance grid-point selected")
 
-    # --- compute SPEI for grid popint ---
-    diag = fSPEI.monthwise_spei_diagnostic(
-        values=balance_accum,
-        dates=balance_dates,
-        month=month,
-        cal_start=cal_start,
-        cal_end=cal_end,
-    )
-    print(diag)
-    fit_info = fSPEI.inspect_loglogistic_fit(diag["sample"]["cal_values"])
-    fit = {
-        "beta": fit_info["beta"],
-        "loc": fit_info["loc"],
-        "scale": fit_info["scale"],
-    }
-    print(fit) 
-    if method=="Mod-Hargreaves":
-        method_label = "MH"
-    elif method=="Hargreaves":
-        method_label = "H"
-    fSPEI.plot_fit_diagnostic(diag["sample"]["cal_values"], fit, output_path=f"{dir_figs}fit_diagnostic_{method_label}_mon{month}_scale{scale}_lat{lat_diagn}lon{lon_diagn}.png")
-    fSPEI.plot_spei_histogram(diag["spei_cal"], month, output_path=f"{dir_figs}spei_histogram_{method_label}_mon{month}_scale{scale}_lat{lat_diagn}lon{lon_diagn}.png")
+    for scale in scales:
+        # --- accumulate balance over scale
+        balance_accum = fSPEI.rolling_water_balance(balance_gp, scale=scale)
+        
+        # --- compute SPEI for grid popint ---
+        diag = fSPEI.monthwise_spei_diagnostic(
+            values=balance_accum,
+            dates=balance_dates,
+            month=month,
+            cal_start=cal_start,
+            cal_end=cal_end,
+        )
+        fit_info = fSPEI.inspect_loglogistic_fit(diag["sample"]["cal_values"])
+        fit = {
+            "beta": fit_info["beta"],
+            "loc": fit_info["loc"],
+            "scale": fit_info["scale"],
+        }
+        if method=="Mod-Hargreaves":
+            method_label = "MH"
+        elif method=="Hargreaves":
+            method_label = "H"
+        
+        fSPEI.plot_fit_diagnostic(
+                diag["sample"]["cal_values"], 
+                fit, 
+                scale, 
+                dates_cal=diag["sample"]["dates_cal"], 
+                output_path=f"{dir_figs}fit_diagnostic_{method_label}_mon{month}_scale{scale}_lat{lat_diagn}lon{lon_diagn}.png"
+                )
+        fSPEI.plot_spei_histogram(diag["spei_cal"], 
+                month, 
+                scale, 
+                output_path=f"{dir_figs}spei_histogram_{method_label}_mon{month}_scale{scale}_lat{lat_diagn}lon{lon_diagn}.png"
+                )
     print("Done")
 
 

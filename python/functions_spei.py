@@ -8,6 +8,15 @@ import os
 from multiprocessing import Pool
 
 
+def get_scratch_path():
+    """Return the scratch root directory based on the current cluster."""
+    hostname = socket.gethostname()
+    if hostname == "ophfe1":
+        return "/home/PERSONALE/alice.portal2/scratch/"
+    elif "ac6" in hostname:
+        return "/ec/res4/scratch/ecme4047/" 
+    return print("Hostname was not recognised")
+
 
 def boxes_african_countries(name_country):
     boxes = {

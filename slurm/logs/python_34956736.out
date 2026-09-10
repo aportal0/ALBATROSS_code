@@ -1,0 +1,146 @@
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] -  This is the ECMWF jobfilter
+[ECMWF-INFO -sbatch] -  +++ Please report issues using the Support portal +++
+[ECMWF-INFO -sbatch] -  +++ https://support.ecmwf.int                     +++
+[ECMWF-INFO -sbatch] -  /usr/local/bin/ecsbatch: size: 54518, mtime: Thu Aug  6 13:29:49 2026
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] - Time at submit: Wed Sep  9 12:37:18 2026 (1788957438.48972) on ac6-101.bullx:/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm
+[ECMWF-INFO -sbatch] - --- SLURM VARIABLES ---
+[ECMWF-INFO -sbatch] - EC_CLUSTER=ac
+[ECMWF-INFO -sbatch] - SLURM_EXPORT_ENV=ALL
+[ECMWF-INFO -sbatch] - SBATCH_EXPORT=NONE
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - jobscript: /etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_python.slurm
+[ECMWF-INFO -sbatch] - --- SCRIPT OPTIONS ---
+[ECMWF-INFO -sbatch] - #SBATCH --job-name=python
+[ECMWF-INFO -sbatch] - #SBATCH --output=logs/python_%j.out
+[ECMWF-INFO -sbatch] - #SBATCH --error=logs/python_%j.err
+[ECMWF-INFO -sbatch] - #SBATCH --time=04:00:00
+[ECMWF-INFO -sbatch] - #SBATCH --cpus-per-task=2
+[ECMWF-INFO -sbatch] - #SBATCH --mem=8G
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - --- POST-PROCESSED OPTIONS ---
+[ECMWF-INFO -sbatch] - ARG --positional=['run_python.slurm']
+[ECMWF-INFO -sbatch] - ARG --cpus_per_task=2
+[ECMWF-INFO -sbatch] - ARG --error=logs/python_%j.err
+[ECMWF-INFO -sbatch] - ARG --job_name=python
+[ECMWF-INFO -sbatch] - ARG --output=logs/python_%j.out
+[ECMWF-INFO -sbatch] - ARG --time=04:00:00
+[ECMWF-INFO -sbatch] - ARG --mem=8G
+[ECMWF-INFO -sbatch] - ------------------------------
+[ECMWF-INFO -sbatch] - No qos requested, assuming qos=nf
+[ECMWF-INFO -sbatch] - jobtag: ecme4047-python-1x2-/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/logs/python__JOBID_.out
+[ECMWF-INFO -sbatch] - ------------------------------
+[ECMWF-INFO -sbatch] - Average Walltime 16 with a Standard Deviation 5
+[ECMWF-INFO -sbatch] - Runtime history
+[ECMWF-INFO -sbatch] -   Date               | Cores   Cluster   Walltime       Mem
+[ECMWF-INFO -sbatch] -   09.09.2026 - 12:10 | 2          ac         18         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 12:04 | 2          ac         18         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 11:53 | 2          ac         18         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 11:31 | 2          ac         16         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 08:11 | 2          ac         13         8G        
+[ECMWF-INFO -sbatch] - ['/usr/bin/sbatch', '--cpus-per-task=2', '--error=logs/python_%j.err', '--job-name=python', '--output=logs/python_%j.out', '--time=04:00:00', '--mem=8G', '--qos=nf', '--licenses=h2resw01', '--export=EC_user_time_limit=04:00:00', '/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_python.slurm']
+[ECMWF-INFO -sbatch] - sbatch executed on ac
+[ECMWF-INFO -sbatch] - Job queued on ac using method local
+[ECMWF-INFO -sbatch] - Submitted batch job 34956736
+WARNING: The MAMBA_ROOT_PREFIX environment variable is not set.
+WARNING: This is required for mamba to work correctly as of 2.0.
+WARNING: 
+WARNING: For now, we are setting 'MAMBA_ROOT_PREFIX' to '/usr/local/apps/conda/26.1.1-3'.
+WARNING: 
+WARNING: Please make sure this is consistent with your installation or alternatively (by order of preference):
+WARNING:   - rerun 'mamba shell init' to initialize mamba for your current shell
+WARNING:   - manually set 'MAMBA_ROOT_PREFIX' to the root of your installation in your shell profile script.
+WARNING:   - use the '-r,--root-prefix' CLI option when calling mamba.
+WARNING: 
+WARNING: This message originates from /usr/local/apps/conda/26.1.1-3/etc/profile.d/mamba.sh
+Input loaded
+ET0 converted to monthly sum
+Input data aligned
+Balance computed
+Balance grid-point selected
+Fit:  {'n': 31, 'sorted_values': array([-107.48484329,  -53.95532087,   -5.88207537,   -3.1516625 ,
+         22.56560172,   26.16450099,   36.10130684,   40.95563469,
+         51.71859086,   65.59301699,   74.19559753,   87.22175286,
+         94.08954144,  156.35509165,  163.15718186,  178.35846163,
+        194.29543015,  231.75146765,  238.4196336 ,  241.92686657,
+        269.07690309,  270.81082689,  283.38508174,  283.43042865,
+        293.48555221,  301.29795073,  302.72804071,  384.34794885,
+        479.92586409,  561.33578501,  596.68985832]), 'w0': np.float64(185.77129081619935), 'w1': np.float64(141.5874658350564), 'w2': np.float64(112.5038136723065), 'denom': np.float64(-11.269377839699928), 'beta': np.float64(-8.643213692842785), 'loc': np.float64(-656.1091915450864), 'scale': np.float64(823.4651668708502), 'gg': np.float64(1.0223631991143152)}
+{'sample': {'all_values': array([  36.10130684,  156.35509165,  194.29543015,  178.35846163,
+         74.19559753,  301.29795073, -107.48484329,  241.92686657,
+        384.34794885,  479.92586409,  269.07690309,  596.68985832,
+        270.81082689,  231.75146765,   26.16450099,   51.71859086,
+        163.15718186,   -5.88207537,   -3.1516625 ,  283.38508174,
+         94.08954144,  561.33578501,  283.43042865,   22.56560172,
+         65.59301699,   87.22175286,  293.48555221,  302.72804071,
+                 nan,  238.4196336 ,   40.95563469,  -53.95532087]), 'cal_values': array([  36.10130684,  156.35509165,  194.29543015,  178.35846163,
+         74.19559753,  301.29795073, -107.48484329,  241.92686657,
+        384.34794885,  479.92586409,  269.07690309,  596.68985832,
+        270.81082689,  231.75146765,   26.16450099,   51.71859086,
+        163.15718186,   -5.88207537,   -3.1516625 ,  283.38508174,
+         94.08954144,  561.33578501,  283.43042865,   22.56560172,
+         65.59301699,   87.22175286,  293.48555221,  302.72804071,
+                 nan,  238.4196336 ,   40.95563469,  -53.95532087]), 'dates_all': DatetimeIndex(['1993-12-01', '1994-12-01', '1995-12-01', '1996-12-01',
+               '1997-12-01', '1998-12-01', '1999-12-01', '2000-12-01',
+               '2001-12-01', '2002-12-01', '2003-12-01', '2004-12-01',
+               '2005-12-01', '2006-12-01', '2007-12-01', '2008-12-01',
+               '2009-12-01', '2010-12-01', '2011-12-01', '2012-12-01',
+               '2013-12-01', '2014-12-01', '2015-12-01', '2016-12-01',
+               '2017-12-01', '2018-12-01', '2019-12-01', '2020-12-01',
+               '2021-12-01', '2022-12-01', '2023-12-01', '2024-12-01'],
+              dtype='datetime64[ns]', freq=None), 'dates_cal': DatetimeIndex(['1993-12-01', '1994-12-01', '1995-12-01', '1996-12-01',
+               '1997-12-01', '1998-12-01', '1999-12-01', '2000-12-01',
+               '2001-12-01', '2002-12-01', '2003-12-01', '2004-12-01',
+               '2005-12-01', '2006-12-01', '2007-12-01', '2008-12-01',
+               '2009-12-01', '2010-12-01', '2011-12-01', '2012-12-01',
+               '2013-12-01', '2014-12-01', '2015-12-01', '2016-12-01',
+               '2017-12-01', '2018-12-01', '2019-12-01', '2020-12-01',
+               '2021-12-01', '2022-12-01', '2023-12-01', '2024-12-01'],
+              dtype='datetime64[ns]', freq=None)}, 'fit': {'n': 31, 'sorted_values': array([-107.48484329,  -53.95532087,   -5.88207537,   -3.1516625 ,
+         22.56560172,   26.16450099,   36.10130684,   40.95563469,
+         51.71859086,   65.59301699,   74.19559753,   87.22175286,
+         94.08954144,  156.35509165,  163.15718186,  178.35846163,
+        194.29543015,  231.75146765,  238.4196336 ,  241.92686657,
+        269.07690309,  270.81082689,  283.38508174,  283.43042865,
+        293.48555221,  301.29795073,  302.72804071,  384.34794885,
+        479.92586409,  561.33578501,  596.68985832]), 'w0': np.float64(185.77129081619935), 'w1': np.float64(141.5874658350564), 'w2': np.float64(112.5038136723065), 'denom': np.float64(-11.269377839699928), 'beta': np.float64(-8.643213692842785), 'loc': np.float64(-656.1091915450864), 'scale': np.float64(823.4651668708502), 'gg': np.float64(1.0223631991143152)}, 'cdf_cal': array([0.1823165 , 0.4709714 , 0.56911316, 0.52864835, 0.2615944 ,
+       0.78627173, 0.029027  , 0.6790199 , 0.8830461 , 0.94165129,
+       0.73237514, 0.97408852, 0.73553516, 0.65718585, 0.16441955,
+       0.21283933, 0.48895582, 0.11491173, 0.11864708, 0.75756074,
+       0.30887128, 0.96705438, 0.75763735, 0.15823526, 0.24229931,
+       0.29216522, 0.77412987, 0.78843169,        nan, 0.6716042 ,
+       0.19149431, 0.06265564]), 'spei_cal': array([-0.90657233, -0.07282825,  0.17411679,  0.07187259, -0.63843769,
+        0.79355157, -1.89528988,  0.46495986,  1.1903527 ,  1.5687877 ,
+        0.62001226,  1.94460155,  0.62964072,  0.40479486, -0.97645486,
+       -0.79660812, -0.02768719, -1.20081373, -1.18177709,  0.69847767,
+       -0.49905226,  1.83916282,  0.69872278, -1.00173722, -0.69892544,
+       -0.5470703 ,  0.75251692,  0.80099141,         nan,  0.44434718,
+       -0.87240291, -1.53285627]), 'cdf_all': array([0.1823165 , 0.4709714 , 0.56911316, 0.52864835, 0.2615944 ,
+       0.78627173, 0.029027  , 0.6790199 , 0.8830461 , 0.94165129,
+       0.73237514, 0.97408852, 0.73553516, 0.65718585, 0.16441955,
+       0.21283933, 0.48895582, 0.11491173, 0.11864708, 0.75756074,
+       0.30887128, 0.96705438, 0.75763735, 0.15823526, 0.24229931,
+       0.29216522, 0.77412987, 0.78843169,        nan, 0.6716042 ,
+       0.19149431, 0.06265564]), 'spei_all': array([-0.90657233, -0.07282825,  0.17411679,  0.07187259, -0.63843769,
+        0.79355157, -1.89528988,  0.46495986,  1.1903527 ,  1.5687877 ,
+        0.62001226,  1.94460155,  0.62964072,  0.40479486, -0.97645486,
+       -0.79660812, -0.02768719, -1.20081373, -1.18177709,  0.69847767,
+       -0.49905226,  1.83916282,  0.69872278, -1.00173722, -0.69892544,
+       -0.5470703 ,  0.75251692,  0.80099141,         nan,  0.44434718,
+       -0.87240291, -1.53285627]), 'cal_mean': np.float64(0.008012769062301894), 'cal_std': np.float64(0.9941976794107886), 'all_mean': np.float64(0.008012769062301894), 'all_std': np.float64(0.9941976794107886)}
+n      = 31
+min    = -107.48484328899953
+max    = 596.689858315055
+mean   = 185.77129081619935
+w0     = 185.77129081619935
+w1     = 141.5874658350564
+w2     = 112.50381367230652
+denom  = -11.269377839699928
+beta   = -8.643213692842785
+g1     = 1.081626389643986
+g2     = 0.9452091858176861
+gg     = 1.0223631991143152
+scale  = 823.4651668708502
+loc    = -656.1091915450864
+{'beta': np.float64(-8.643213692842785), 'loc': np.float64(-656.1091915450864), 'scale': np.float64(823.4651668708502)}

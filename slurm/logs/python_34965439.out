@@ -1,0 +1,153 @@
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] -  This is the ECMWF jobfilter
+[ECMWF-INFO -sbatch] -  +++ Please report issues using the Support portal +++
+[ECMWF-INFO -sbatch] -  +++ https://support.ecmwf.int                     +++
+[ECMWF-INFO -sbatch] -  /usr/local/bin/ecsbatch: size: 54518, mtime: Thu Aug  6 13:29:49 2026
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] - Time at submit: Wed Sep  9 13:03:23 2026 (1788959003.5240843) on ac6-101.bullx:/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm
+[ECMWF-INFO -sbatch] - --- SLURM VARIABLES ---
+[ECMWF-INFO -sbatch] - EC_CLUSTER=ac
+[ECMWF-INFO -sbatch] - SLURM_EXPORT_ENV=ALL
+[ECMWF-INFO -sbatch] - SBATCH_EXPORT=NONE
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - jobscript: /etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_python.slurm
+[ECMWF-INFO -sbatch] - --- SCRIPT OPTIONS ---
+[ECMWF-INFO -sbatch] - #SBATCH --job-name=python
+[ECMWF-INFO -sbatch] - #SBATCH --output=logs/python_%j.out
+[ECMWF-INFO -sbatch] - #SBATCH --error=logs/python_%j.err
+[ECMWF-INFO -sbatch] - #SBATCH --time=04:00:00
+[ECMWF-INFO -sbatch] - #SBATCH --cpus-per-task=2
+[ECMWF-INFO -sbatch] - #SBATCH --mem=8G
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - --- POST-PROCESSED OPTIONS ---
+[ECMWF-INFO -sbatch] - ARG --positional=['run_python.slurm']
+[ECMWF-INFO -sbatch] - ARG --cpus_per_task=2
+[ECMWF-INFO -sbatch] - ARG --error=logs/python_%j.err
+[ECMWF-INFO -sbatch] - ARG --job_name=python
+[ECMWF-INFO -sbatch] - ARG --output=logs/python_%j.out
+[ECMWF-INFO -sbatch] - ARG --time=04:00:00
+[ECMWF-INFO -sbatch] - ARG --mem=8G
+[ECMWF-INFO -sbatch] - ------------------------------
+[ECMWF-INFO -sbatch] - No qos requested, assuming qos=nf
+[ECMWF-INFO -sbatch] - jobtag: ecme4047-python-1x2-/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/logs/python__JOBID_.out
+[ECMWF-INFO -sbatch] - ------------------------------
+[ECMWF-INFO -sbatch] - Average Walltime 16 with a Standard Deviation 3
+[ECMWF-INFO -sbatch] - Runtime history
+[ECMWF-INFO -sbatch] -   Date               | Cores   Cluster   Walltime       Mem
+[ECMWF-INFO -sbatch] -   09.09.2026 - 12:57 | 2          ac         14         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 12:49 | 2          ac         17         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 12:45 | 2          ac         15         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 12:10 | 2          ac         18         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 12:04 | 2          ac         18         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 11:53 | 2          ac         18         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 11:31 | 2          ac         16         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 08:11 | 2          ac         13         8G        
+[ECMWF-INFO -sbatch] - ['/usr/bin/sbatch', '--cpus-per-task=2', '--error=logs/python_%j.err', '--job-name=python', '--output=logs/python_%j.out', '--time=04:00:00', '--mem=8G', '--qos=nf', '--licenses=h2resw01', '--export=EC_user_time_limit=04:00:00', '/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_python.slurm']
+[ECMWF-INFO -sbatch] - sbatch executed on ac
+[ECMWF-INFO -sbatch] - Job queued on ac using method local
+[ECMWF-INFO -sbatch] - Submitted batch job 34965439
+WARNING: The MAMBA_ROOT_PREFIX environment variable is not set.
+WARNING: This is required for mamba to work correctly as of 2.0.
+WARNING: 
+WARNING: For now, we are setting 'MAMBA_ROOT_PREFIX' to '/usr/local/apps/conda/26.1.1-3'.
+WARNING: 
+WARNING: Please make sure this is consistent with your installation or alternatively (by order of preference):
+WARNING:   - rerun 'mamba shell init' to initialize mamba for your current shell
+WARNING:   - manually set 'MAMBA_ROOT_PREFIX' to the root of your installation in your shell profile script.
+WARNING:   - use the '-r,--root-prefix' CLI option when calling mamba.
+WARNING: 
+WARNING: This message originates from /usr/local/apps/conda/26.1.1-3/etc/profile.d/mamba.sh
+Input loaded
+ET0 converted to monthly sum
+Input data aligned
+Balance computed
+Balance grid-point selected
+Fit:  {'n': 31, 'sorted_values': array([-107.48484329,  -53.95532087,   -5.88207537,   -3.1516625 ,
+         22.56560172,   26.16450099,   36.10130684,   40.95563469,
+         51.71859086,   65.59301699,   74.19559753,   87.22175286,
+         94.08954144,  156.35509165,  163.15718186,  178.35846163,
+        194.29543015,  231.75146765,  238.4196336 ,  241.92686657,
+        269.07690309,  270.81082689,  283.38508174,  283.43042865,
+        293.48555221,  301.29795073,  302.72804071,  384.34794885,
+        479.92586409,  561.33578501,  596.68985832]), 'w0': np.float64(185.77129081619935), 'w1': np.float64(141.5874658350564), 'w2': np.float64(112.5038136723065), 'denom': np.float64(-11.269377839699928), 'beta': np.float64(-8.643213692842785), 'loc': np.float64(-656.1091915450864), 'scale': np.float64(823.4651668708502), 'gg': np.float64(1.0223631991143152)}
+n      = 31
+min    = -107.48484328899953
+max    = 596.689858315055
+mean   = 185.77129081619935
+w0     = 185.77129081619935
+w1     = 141.5874658350564
+w2     = 112.50381367230652
+denom  = -11.269377839699928
+beta   = -8.643213692842785
+g1     = 1.081626389643986
+g2     = 0.9452091858176861
+gg     = 1.0223631991143152
+scale  = 823.4651668708502
+loc    = -656.1091915450864
+Fit:  {'n': 31, 'sorted_values': array([-185.29768056, -172.95989353, -139.5780141 , -138.37150327,
+        -96.9579265 ,  -11.63258886,   -8.03451673,   12.29573516,
+         22.87225656,   39.48355136,   88.75054284,  101.06203699,
+        122.08591239,  144.18051773,  157.83166534,  176.46249069,
+        222.54437405,  223.23201542,  252.77950229,  253.53004572,
+        306.13661439,  308.18619302,  339.70163441,  340.80481173,
+        359.05117079,  368.12588539,  430.95518065,  534.12975817,
+        647.40762119,  660.37016126,  894.4515372 ]), 'w0': np.float64(201.72900294163273), 'w1': np.float64(173.81276008618715), 'w2': np.float64(143.00037992316913), 'denom': np.float64(-16.85472196352464), 'beta': np.float64(-8.656121266578987), 'loc': np.float64(-1061.1689425791972), 'scale': np.float64(1235.3550643667506), 'gg': np.float64(1.022295518064839)}
+n      = 31
+min    = -185.29768056183303
+max    = 894.4515372008103
+mean   = 201.72900294163273
+w0     = 201.72900294163273
+w1     = 173.81276008618715
+w2     = 143.00037992316913
+denom  = -16.85472196352464
+beta   = -8.656121266578987
+g1     = 1.081479851744766
+g2     = 0.9452746774852586
+gg     = 1.022295518064839
+scale  = 1235.3550643667506
+loc    = -1061.1689425791972
+Fit:  {'n': 31, 'sorted_values': array([-151.23361744, -141.67213857,  -15.92579934,   42.48489056,
+         91.70951103,   98.05738688,  112.0729565 ,  210.70806134,
+        231.84219423,  234.14665734,  244.94794778,  261.80468   ,
+        305.46987512,  305.99556083,  328.75984269,  358.61826837,
+        388.28755446,  399.855738  ,  417.08063735,  428.52341542,
+        434.8365149 ,  438.94454512,  509.93761882,  648.34520249,
+        696.05130911,  706.6728939 ,  727.43799759,  744.41941714,
+        769.7400348 ,  937.4178579 , 1048.22289705]), 'w0': np.float64(381.08257778713715), 'w1': np.float64(275.4293555437057), 'w2': np.float64(213.84743890991254), 'denom': np.float64(-11.591077984378217), 'beta': np.float64(-14.647139250472534), 'loc': np.float64(-2105.6520880687667), 'scale': np.float64(2467.7119155516407), 'gg': np.float64(1.0077086592581497)}
+n      = 31
+min    = -151.23361743642107
+max    = 1048.222897047291
+mean   = 381.08257778713715
+w0     = 381.08257778713715
+w1     = 275.4293555437057
+w2     = 213.8474389099126
+denom  = -11.591077984378444
+beta   = -14.647139250472247
+g1     = 1.044329915586503
+g2     = 0.9649332497501177
+gg     = 1.0077086592581503
+scale  = 2467.71191555159
+loc    = -2105.6520880687176
+Fit:  {'n': 31, 'sorted_values': array([ 466.4487561 ,  802.6462538 , 1001.53536032, 1123.36685765,
+       1262.9415183 , 1313.45539512, 1415.50212264, 1466.51576288,
+       1511.44009919, 1530.81495193, 1645.13365778, 1673.74736191,
+       1799.71643714, 1869.94178158, 1891.83811445, 1917.33693392,
+       1922.34935315, 1935.45648705, 2011.00438813, 2032.79274888,
+       2075.27372009, 2183.61027471, 2224.46460653, 2388.12221983,
+       2656.23060278, 2824.09219428, 2849.99935811, 2897.5640876 ,
+       2914.69393462, 3117.10124502, 4249.33978868]), 'w0': np.float64(1966.918592715624), 'w1': np.float64(1198.191345441395), 'w2': np.float64(877.8827089815909), 'denom': np.float64(-45.06677395679981), 'beta': np.float64(-9.529506118606193), 'loc': np.float64(-2125.6621584900745), 'scale': np.float64(4018.850679835687), 'gg': np.float64(1.0183460589217577)}
+n      = 31
+min    = 466.44875609529953
+max    = 4249.339788677291
+mean   = 1966.918592715624
+w0     = 1966.918592715624
+w1     = 1198.191345441395
+w2     = 877.8827089815909
+denom  = -45.06677395679981
+beta   = -9.529506118606193
+g1     = 1.0726443837584911
+g2     = 0.9493790060723808
+gg     = 1.0183460589217577
+scale  = 4018.850679835687
+loc    = -2125.6621584900745
+Done
