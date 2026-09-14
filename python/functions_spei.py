@@ -6,6 +6,7 @@ from scipy.stats import fisk, norm
 from scipy.special import gamma
 import os
 from multiprocessing import Pool
+import socket
 
 
 def get_scratch_path():

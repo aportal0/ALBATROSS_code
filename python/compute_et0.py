@@ -3,11 +3,14 @@ import xarray as xr
 import xesmf as xe
 import functions_spei as fSPEI
 
-dir_ERA5Land = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/t2m/monthly/"
-dir_MSWEP    = "/home/PERSONALE/alice.portal2/scratch/MSWEP/MSWEP_V316_test/Past/Monthly/"
-dir_out      = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/ET0/monthly/"
+dir_scratch = fSPEI.get_scratch_path()
 
-weights_file = "/home/PERSONALE/alice.portal2/scratch/ERA5-Land/ET0/weights_madagascar.nc"
+dir_ERA5Land = dir_scratch + "ERA5-Land/t2m/monthly/"
+dir_MSWEP    = dir_scratch + "MSWEP/MSWEP_V316_test/Past/Monthly/"
+dir_out_et0      = dir_scratch + "ERA5-Land/ET0/monthly/"
+dir_out_pr = dir_MSWEP + "regridded_ERA5-Land/"
+
+weights_file = dir_scratch + "ERA5-Land/ET0/weights_madagascar.nc"
 box = fSPEI.boxes_african_countries('madagascar')
 years = range(1993, 2024 + 1)
 
@@ -79,9 +82,9 @@ for year in years:
 
     # --- save ---
     os.makedirs(dir_out, exist_ok=True)
-    ET0_MH.to_netcdf(os.path.join(dir_out, f'ET0_Mod-Hargreaves_monthly_{year}_Madagascar.nc'))
-    ET0_H.to_netcdf(os.path.join(dir_out,  f'ET0_Hargreaves_monthly_{year}_Madagascar.nc'))
-    precip_mg.to_netcdf(os.path.join(dir_out,  f'precip_monthly_{year}_Madagascar.nc')) 
+    ET0_MH.to_netcdf(os.path.join(dir_out_et0, f'ET0_Mod-Hargreaves_monthly_{year}_Madagascar.nc'))
+    ET0_H.to_netcdf(os.path.join(dir_out_et0,  f'ET0_Hargreaves_monthly_{year}_Madagascar.nc'))
+    precip_mg.to_netcdf(os.path.join(dir_out_pr,  f'precip_monthly_{year}_Madagascar.nc')) 
 
     print(f"Done {year}")
 

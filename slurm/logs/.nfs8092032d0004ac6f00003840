@@ -1,0 +1,99 @@
+[ECMWF-INFO -ecprofile] /usr/bin/bash NON_INTERACTIVE on ac6-196 at 20260914_073159.631, PID: 1497296, JOBID: 36749466
+[ECMWF-INFO -ecprofile] $SCRATCH=/ec/res4/scratch/ecme4047
+[ECMWF-INFO -ecprofile] $PERM=/perm/ecme4047
+[ECMWF-INFO -ecprofile] $HPCPERM=/ec/res4/hpcperm/ecme4047
+[ECMWF-INFO -ecprofile] $TMPDIR=/etc/ecmwf/ssd/ssd1/tmpdirs/ecme4047.36749466
+[ECMWF-INFO -ecprofile] $SCRATCHDIR=/ec/res4/scratchdir/ecme4047/2/36749466
+
+Lmod is automatically replacing "prgenv/gnu" with "conda/26.1.1-3".
+
+-------------------------------------------------------------------------------
+There are messages associated with the following module(s):
+-------------------------------------------------------------------------------
+
+conda/26.1.1-3:
+   Using conda effectively disables any other loaded modules. Use "module
+   reset" to return to the default environment.
+
+-------------------------------------------------------------------------------
+
+Traceback (most recent call last):
+  File "/perm/ecme4047/conda/envs/xesmf_env/lib/python3.14/site-packages/xarray/backends/file_manager.py", line 219, in _acquire_with_cache_info
+    file = self._cache[self._key]
+           ~~~~~~~~~~~^^^^^^^^^^^
+  File "/perm/ecme4047/conda/envs/xesmf_env/lib/python3.14/site-packages/xarray/backends/lru_cache.py", line 56, in __getitem__
+    value = self._cache[key]
+            ~~~~~~~~~~~^^^^^
+KeyError: [<class 'netCDF4._netCDF4.Dataset'>, ('/ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Monthly/regridded_ERA5-Land/precip_monthly_1993-2024_Madagascar.nc',), 'r', (('clobber', True), ('diskless', False), ('format', 'NETCDF4'), ('persist', False)), '91453031-a5dd-4d1c-b729-2abb01c87b05']
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ecme4047/ALBATROSS_code/python/compute_spei.py", line 109, in <module>
+    main()
+    ~~~~^^
+  File "/home/ecme4047/ALBATROSS_code/python/compute_spei.py", line 29, in main
+    ds_precip = xr.open_dataset(
+        f"{dir_precip}precip_monthly_1993-2024_{country}.nc",
+        chunks={'time': 12}
+    )
+  File "/perm/ecme4047/conda/envs/xesmf_env/lib/python3.14/site-packages/xarray/backends/api.py", line 613, in open_dataset
+    backend_ds = backend.open_dataset(
+        filename_or_obj,
+    ...<2 lines>...
+        **kwargs,
+    )
+  File "/perm/ecme4047/conda/envs/xesmf_env/lib/python3.14/site-packages/xarray/backends/netCDF4_.py", line 771, in open_dataset
+    store = NetCDF4DataStore.open(
+        filename_or_obj,
+    ...<8 lines>...
+        autoclose=autoclose,
+    )
+  File "/perm/ecme4047/conda/envs/xesmf_env/lib/python3.14/site-packages/xarray/backends/netCDF4_.py", line 529, in open
+    return cls(manager, group=group, mode=mode, lock=lock, autoclose=autoclose)
+  File "/perm/ecme4047/conda/envs/xesmf_env/lib/python3.14/site-packages/xarray/backends/netCDF4_.py", line 429, in __init__
+    self.format = self.ds.data_model
+                  ^^^^^^^
+  File "/perm/ecme4047/conda/envs/xesmf_env/lib/python3.14/site-packages/xarray/backends/netCDF4_.py", line 538, in ds
+    return self._acquire()
+           ~~~~~~~~~~~~~^^
+  File "/perm/ecme4047/conda/envs/xesmf_env/lib/python3.14/site-packages/xarray/backends/netCDF4_.py", line 532, in _acquire
+    with self._manager.acquire_context(needs_lock) as root:
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/perm/ecme4047/conda/envs/xesmf_env/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/perm/ecme4047/conda/envs/xesmf_env/lib/python3.14/site-packages/xarray/backends/file_manager.py", line 207, in acquire_context
+    file, cached = self._acquire_with_cache_info(needs_lock)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/perm/ecme4047/conda/envs/xesmf_env/lib/python3.14/site-packages/xarray/backends/file_manager.py", line 225, in _acquire_with_cache_info
+    file = self._opener(*self._args, **kwargs)
+  File "src/netCDF4/_netCDF4.pyx", line 2522, in netCDF4._netCDF4.Dataset.__init__
+  File "src/netCDF4/_netCDF4.pyx", line 2159, in netCDF4._netCDF4._ensure_nc_success
+FileNotFoundError: [Errno 2] No such file or directory: '/ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Monthly/regridded_ERA5-Land/precip_monthly_1993-2024_Madagascar.nc'
+[ECMWF-INFO -ecepilog] ----------------------------------------------------------------------------------------------------
+[ECMWF-INFO -ecepilog] This is the ECMWF job Epilogue
+[ECMWF-INFO -ecepilog] +++ Please report issues using the Support portal +++
+[ECMWF-INFO -ecepilog] +++ https://support.ecmwf.int                     +++
+[ECMWF-INFO -ecepilog] ----------------------------------------------------------------------------------------------------
+[ECMWF-INFO -ecepilog] Run at 2026-09-14T07:32:16 on ac
+[ECMWF-INFO -ecepilog] JobName                   : python
+[ECMWF-INFO -ecepilog] JobID                     : 36749466
+[ECMWF-INFO -ecepilog] Submit                    : 2026-09-14T07:31:43
+[ECMWF-INFO -ecepilog] Start                     : 2026-09-14T07:31:56
+[ECMWF-INFO -ecepilog] End                       : 2026-09-14T07:32:16
+[ECMWF-INFO -ecepilog] QueuedTime                : 13.0
+[ECMWF-INFO -ecepilog] ElapsedRaw                : 20
+[ECMWF-INFO -ecepilog] ExitCode                  : 1:0
+[ECMWF-INFO -ecepilog] DerivedExitCode           : 0:0
+[ECMWF-INFO -ecepilog] State                     : FAILED
+[ECMWF-INFO -ecepilog] Account                   : spitport
+[ECMWF-INFO -ecepilog] QOS                       : nf
+[ECMWF-INFO -ecepilog] User                      : ecme4047
+[ECMWF-INFO -ecepilog] StdOut                    : /etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/logs/python_36749466.out
+[ECMWF-INFO -ecepilog] StdErr                    : /etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/logs/python_36749466.err
+[ECMWF-INFO -ecepilog] NNodes                    : 1
+[ECMWF-INFO -ecepilog] NCPUS                     : 8
+[ECMWF-INFO -ecepilog] SBU                       : 0.379
+[ECMWF-INFO -ecepilog] jobtag                    : ecme4047-python-1x8-/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/logs/python__JOBID_.out
+[ECMWF-INFO -ecepilog] ----------------------------------------------------------------------------------------------------
+

@@ -8,7 +8,7 @@ def main():
     dir_scratch = fSPEI.get_scratch_path()
 
     dir_pet    = dir_scratch + "ERA5-Land/ET0/monthly/"
-    dir_precip = dir_scratch + "ERA5-Land/ET0/monthly/"
+    dir_precip = dir_scratch + "MSWEP/MSWEP_V316_test/Past/Monthly/regridded_ERA5-Land/"
     dir_out    = dir_scratch + "ERA5-Land/SPEI/monthly/"
     dir_mask   = dir_scratch + "ERA5-Land/"
 
