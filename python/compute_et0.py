@@ -6,12 +6,13 @@ import functions_spei as fSPEI
 dir_scratch = fSPEI.get_scratch_path()
 
 dir_ERA5Land = dir_scratch + "ERA5-Land/t2m/monthly/"
-dir_MSWEP    = dir_scratch + "MSWEP/MSWEP_V316_test/Past/Monthly/"
-dir_out_et0      = dir_scratch + "ERA5-Land/ET0/monthly/"
+dir_MSWEP = dir_scratch + "MSWEP/MSWEP_V316_test/Past/Monthly/"
+dir_out_et0 = dir_scratch + "ERA5-Land/ET0/monthly/"
 dir_out_pr = dir_MSWEP + "regridded_ERA5-Land/"
 
-weights_file = dir_scratch + "ERA5-Land/ET0/weights_madagascar.nc"
-box = fSPEI.boxes_african_countries('madagascar')
+country = "Madagascar"
+weights_file = dir_scratch + f"ERA5-Land/ET0/weights_{country.lower()}.nc"
+box = fSPEI.boxes_african_countries(country)
 years = range(1993, 2024 + 1)
 
 # --- Build regridder once on year 1, then reuse via saved weights ---
@@ -52,11 +53,11 @@ for year in years:
         tmax = tmax - 273.15
 
     # --- subset + rename ---
-    tmin_mg = fSPEI.subset_box(tmin, box).rename({'valid_time': 'time', 'latitude': 'lat', 'longitude': 'lon'})
-    tmax_mg = fSPEI.subset_box(tmax, box).rename({'valid_time': 'time', 'latitude': 'lat', 'longitude': 'lon'})
+    tmin_country = fSPEI.subset_box(tmin, box).rename({'valid_time': 'time', 'latitude': 'lat', 'longitude': 'lon'})
+    tmax_country = fSPEI.subset_box(tmax, box).rename({'valid_time': 'time', 'latitude': 'lat', 'longitude': 'lon'})
 
     # --- regrid precip (reusing saved weights) ---
-    precip_mg = (
+    precip_country = (
             regridder(precip)
             .resample(time='1MS')
             .sum()
@@ -65,14 +66,14 @@ for year in years:
     )
 
     # --- align time index ---
-    tmin_mg = tmin_mg.resample(time='1MS').mean()
-    tmax_mg = tmax_mg.resample(time='1MS').mean()
+    tmin_country = tmin_country.resample(time='1MS').mean()
+    tmax_country = tmax_country.resample(time='1MS').mean()
 
     # --- assemble dataset ---
     ds_monthly = xr.Dataset({
-        'tmin':   tmin_mg,
-        'tmax':   tmax_mg,
-        'precip': precip_mg,
+        'tmin':   tmin_country,
+        'tmax':   tmax_country,
+        'precip': precip_country,
     })
 
     # --- ET0: compute Ra once, share across both formulas ---
@@ -82,9 +83,9 @@ for year in years:
 
     # --- save ---
     os.makedirs(dir_out, exist_ok=True)
-    ET0_MH.to_netcdf(os.path.join(dir_out_et0, f'ET0_Mod-Hargreaves_monthly_{year}_Madagascar.nc'))
-    ET0_H.to_netcdf(os.path.join(dir_out_et0,  f'ET0_Hargreaves_monthly_{year}_Madagascar.nc'))
-    precip_mg.to_netcdf(os.path.join(dir_out_pr,  f'precip_monthly_{year}_Madagascar.nc')) 
+    ET0_MH.to_netcdf(os.path.join(dir_out_et0, f'ET0_Mod-Hargreaves_monthly_{year}_{country}.nc'))
+    ET0_H.to_netcdf(os.path.join(dir_out_et0,  f'ET0_Hargreaves_monthly_{year}_{country}.nc'))
+    precip_mg.to_netcdf(os.path.join(dir_out_pr,  f'precip_monthly_{year}_{country}.nc')) 
 
     print(f"Done {year}")
 
