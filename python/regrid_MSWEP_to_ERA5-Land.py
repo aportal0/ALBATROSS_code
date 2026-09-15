@@ -3,6 +3,8 @@ import glob
 import xarray as xr
 import xesmf as xe
 import functions_spei as fSPEI
+import pandas as pd
+import calendar
 
 # -----------------------------
 # Paths
@@ -13,9 +15,10 @@ dir_mswep = dir_scratch + "MSWEP/MSWEP_V316_test/Past/Daily/"
 dir_era5  = dir_scratch + "ERA5-Land/t2m/daily/"
 dir_out   = dir_mswep + "regridded_ERA5-Land/"
 
-weights_file = os.path.join(dir_out, "weights_mswep_to_era5land.nc")
+country = "Madagascar"
+weights_file = os.path.join(dir_out, f"weights_mswep_to_era5land_{country}.nc")
 
-years = range(1993, 2024 + 1)
+years = range(1994, 2024 + 1)
 
 os.makedirs(dir_out, exist_ok=True)
 
@@ -23,53 +26,55 @@ os.makedirs(dir_out, exist_ok=True)
 # -----------------------------
 # Helpers
 # -----------------------------
-def find_era5_daily_file(year):
-    """
-    Finds one ERA5-Land daily file for the given year to define the target grid.
-    Adjust the glob if your ERA5 filenames follow a different pattern.
-    """
+def standardize_latlon(da):
+    rename_dict = {}
+    if "latitude" in da.dims or "latitude" in da.coords:
+        rename_dict["latitude"] = "lat"
+    if "longitude" in da.dims or "longitude" in da.coords:
+        rename_dict["longitude"] = "lon"
+    if rename_dict:
+        da = da.rename(rename_dict)
+    return da
+
+
+def find_one_era5_file(year):
     year_dir = os.path.join(dir_era5, str(year))
-    candidates = sorted(glob.glob(os.path.join(year_dir, "*.nc")))
-    if not candidates:
-        raise FileNotFoundError(f"No ERA5-Land daily files found in {year_dir}")
-    return candidates[0]
+    files = sorted(
+        f for f in os.listdir(year_dir)
+        if f.endswith(".nc")
+    )
+    if not files:
+        raise FileNotFoundError(f"No ERA5-Land files found in {year_dir}")
+    return os.path.join(year_dir, files[0])
 
 
-def get_target_grid(year):
+def build_target_grid(name_country):
     """
-    Opens one ERA5-Land daily file and extracts the target grid from t2m.
+    Build one Madagascar ERA5-Land target grid from a single ERA5 daily file.
     """
-    era5_file = find_era5_daily_file(year)
-    ds = xr.open_dataset(era5_file)
+    sample_file = find_one_era5_file(1993)
+    ds = xr.open_dataset(sample_file)
 
     if "t2m" not in ds:
-        raise KeyError(f"'t2m' not found in ERA5 file: {era5_file}")
+        raise KeyError(f"'t2m' not found in ERA5 file: {sample_file}")
 
     da = ds["t2m"]
 
-    # Remove time dimension if present
-    if "time" in da.dims:
-        target = da.isel(time=0, drop=True)
-    elif "valid_time" in da.dims:
-        target = da.isel(valid_time=0, drop=True)
-    else:
-        target = da
+    if "valid_time" in da.dims:
+        da = da.isel(valid_time=0, drop=True)
+    elif "time" in da.dims:
+        da = da.isel(time=0, drop=True)
 
-    # Standardize coordinate names for xESMF
-    rename_dict = {}
-    if "latitude" in target.dims or "latitude" in target.coords:
-        rename_dict["latitude"] = "lat"
-    if "longitude" in target.dims or "longitude" in target.coords:
-        rename_dict["longitude"] = "lon"
-    if rename_dict:
-        target = target.rename(rename_dict)
+    da = standardize_latlon(da)
+    box = fSPEI.boxes_african_countries(name_country)
+    da = fSPEI.subset_box(da, box)
 
-    return target
+    return da
 
 
-def open_mswep_day(year, day_no):
+def open_mswep_daily_file(year, day_no):
     """
-    Opens one MSWEP daily file named YYYYDDD.nc
+    Open one MSWEP daily file named YYYYDDD.nc
     """
     fname = f"{year}{day_no:03d}.nc"
     fpath = os.path.join(dir_mswep, fname)
@@ -80,67 +85,45 @@ def open_mswep_day(year, day_no):
     ds = xr.open_dataset(fpath)
 
     if "precipitation" not in ds:
-        raise KeyError(f"'precipitation' not found in MSWEP file: {fpath}")
+        raise KeyError(f"'precipitation' not found in {fpath}")
 
     da = ds["precipitation"]
+    da = standardize_latlon(da)
 
-    # Standardize coordinate names
-    rename_dict = {}
-    if "latitude" in da.dims or "latitude" in da.coords:
-        rename_dict["latitude"] = "lat"
-    if "longitude" in da.dims or "longitude" in da.coords:
-        rename_dict["longitude"] = "lon"
-    if rename_dict:
-        da = da.rename(rename_dict)
-
-    # Remove singleton time dim if present
+    # remove singleton time dimension if present
     if "time" in da.dims and da.sizes["time"] == 1:
         da = da.isel(time=0, drop=True)
 
-    # Re-add proper time coordinate from filename
-    date = xr.DataArray(
-        [xr.cftime_range(start=f"{year}-01-01", periods=365, calendar="standard")[day_no - 1]],
-        dims=["time"],
-        name="time"
-    )
-
-    da = da.expand_dims(time=date)
+    # assign time from year + day_of_year
+    date = pd.Timestamp(f"{year}-01-01") + pd.Timedelta(days=day_no - 1)
+    da = da.expand_dims(time=[date])
 
     return da
 
 
-def build_regridder(sample_year, weights_path):
+def build_regridder(year, weights_path, name_country):
     """
-    Builds the regridder once, or reuses saved weights.
+    Reuse existing Madagascar conservative weights.
     """
-    target = get_target_grid(sample_year)
+    target = build_target_grid(name_country)
 
+    # find one MSWEP file as source template
     sample_src = None
-    for d in day_numbers:
-        sample_src = open_mswep_day(sample_year, d)
+    for day_no in range(1, 367):
+        sample_src = open_mswep_daily_file(year, day_no)
         if sample_src is not None:
             break
 
     if sample_src is None:
-        raise FileNotFoundError(f"No MSWEP daily files found for sample year {sample_year}")
+        raise FileNotFoundError("No sample MSWEP daily file found for building regridder.")
 
-    if os.path.exists(weights_path):
-        regridder = xe.Regridder(
-            sample_src,
-            target,
-            method="conservative",
-            periodic=False,
-            weights=weights_path
-        )
-    else:
-        regridder = xe.Regridder(
-            sample_src,
-            target,
-            method="conservative",
-            periodic=False,
-            reuse_weights=False
-        )
-        regridder.to_netcdf(weights_path)
+    regridder = xe.Regridder(
+        sample_src,
+        target,
+        method="conservative",
+        periodic=False,
+        weights=weights_path
+    )
 
     return regridder
 
@@ -148,14 +131,14 @@ def build_regridder(sample_year, weights_path):
 # -----------------------------
 # Main
 # -----------------------------
-regridder = build_regridder(1993, weights_file)
+regridder = build_regridder(1993, weights_file, country)
 
 for year in years:
     max_day = 366 if calendar.isleap(year) else 365
     daily_list = []
 
     for day_no in range(1, max_day+1):
-        da_day = open_mswep_day(year, day_no)
+        da_day = open_mswep_daily_file(year, day_no)
 
         if da_day is None:
             print(f"Missing file: {year}{day_no:03d}.nc")
@@ -180,7 +163,7 @@ for year in years:
 
         out_file = os.path.join(
             dir_out,
-            f"MSWEP_precip_daily_{year}{month:02d}_Madagascar_res_ERA5-Land.nc"
+            f"precip_daily_{year}{month:02d}_{country}_res_ERA5-Land.nc"
         )
         ds_out.to_netcdf(out_file)
 

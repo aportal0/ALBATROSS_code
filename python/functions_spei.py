@@ -28,10 +28,14 @@ def boxes_african_countries(name_country):
 
 
 def subset_box(da, box):
-    da = da.sortby('longitude')
+    # Handle both 'longitude' and 'lon' coordinate names
+    lon_name = "longitude" if "longitude" in da.dims or "longitude" in da.coords else "lon"
+    lat_name = "latitude" if "latitude" in da.dims or "latitude" in da.coords else "lat"
+
+    da = da.sortby(lon_name)
     return da.sel(
-        latitude=slice(box['lat_max'], box['lat_min']),
-        longitude=slice(box['lon_min'], box['lon_max']),
+        {lat_name: slice(box['lat_max'], box['lat_min']),
+         lon_name: slice(box['lon_min'], box['lon_max'])}
     )
 
 
