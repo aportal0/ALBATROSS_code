@@ -11,7 +11,7 @@ dir_out_et0 = dir_scratch + "ERA5-Land/ET0/monthly/"
 dir_out_pr = dir_MSWEP + "regridded_ERA5-Land/"
 
 country = "Madagascar"
-weights_file = dir_scratch + f"ERA5-Land/ET0/weights_{country.lower()}.nc"
+weights_file = dir_scratch + f"MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/weights_mswep_to_era5land_{country.lower()}.nc"
 box = fSPEI.boxes_african_countries(country)
 years = range(1993, 2024 + 1)
 

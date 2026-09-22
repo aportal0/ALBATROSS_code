@@ -1,0 +1,481 @@
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] -  This is the ECMWF jobfilter
+[ECMWF-INFO -sbatch] -  +++ Please report issues using the Support portal +++
+[ECMWF-INFO -sbatch] -  +++ https://support.ecmwf.int                     +++
+[ECMWF-INFO -sbatch] -  /usr/local/bin/ecsbatch: size: 54518, mtime: Thu Aug  6 13:29:49 2026
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] - Time at submit: Tue Sep 15 11:55:14 2026 (1789473314.1728606) on ac6-101.bullx:/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm
+[ECMWF-INFO -sbatch] - --- SLURM VARIABLES ---
+[ECMWF-INFO -sbatch] - EC_CLUSTER=ac
+[ECMWF-INFO -sbatch] - SLURM_EXPORT_ENV=ALL
+[ECMWF-INFO -sbatch] - SBATCH_EXPORT=NONE
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - jobscript: /etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_python.slurm
+[ECMWF-INFO -sbatch] - --- SCRIPT OPTIONS ---
+[ECMWF-INFO -sbatch] - #SBATCH --job-name=python
+[ECMWF-INFO -sbatch] - #SBATCH --output=logs/python_%j.out
+[ECMWF-INFO -sbatch] - #SBATCH --error=logs/python_%j.err
+[ECMWF-INFO -sbatch] - #SBATCH --time=04:00:00
+[ECMWF-INFO -sbatch] - #SBATCH --cpus-per-task=2
+[ECMWF-INFO -sbatch] - #SBATCH --mem=8G
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - --- POST-PROCESSED OPTIONS ---
+[ECMWF-INFO -sbatch] - ARG --positional=['run_python.slurm']
+[ECMWF-INFO -sbatch] - ARG --cpus_per_task=2
+[ECMWF-INFO -sbatch] - ARG --error=logs/python_%j.err
+[ECMWF-INFO -sbatch] - ARG --job_name=python
+[ECMWF-INFO -sbatch] - ARG --output=logs/python_%j.out
+[ECMWF-INFO -sbatch] - ARG --time=04:00:00
+[ECMWF-INFO -sbatch] - ARG --mem=8G
+[ECMWF-INFO -sbatch] - ------------------------------
+[ECMWF-INFO -sbatch] - No qos requested, assuming qos=nf
+[ECMWF-INFO -sbatch] - jobtag: ecme4047-python-1x2-/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/logs/python__JOBID_.out
+[ECMWF-INFO -sbatch] - ------------------------------
+[ECMWF-INFO -sbatch] - Average Walltime 23 with a Standard Deviation 23
+[ECMWF-INFO -sbatch] - Runtime history
+[ECMWF-INFO -sbatch] -   Date               | Cores   Cluster   Walltime       Mem
+[ECMWF-INFO -sbatch] -   15.09.2026 - 11:47 | 2          ac         95         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 13:06 | 2          ac         16         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 13:03 | 2          ac         14         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 12:57 | 2          ac         14         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 12:49 | 2          ac         17         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 12:45 | 2          ac         15         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 12:10 | 2          ac         18         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 12:04 | 2          ac         18         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 11:53 | 2          ac         18         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 11:31 | 2          ac         16         8G        
+[ECMWF-INFO -sbatch] -   09.09.2026 - 08:11 | 2          ac         13         8G        
+[ECMWF-INFO -sbatch] - ['/usr/bin/sbatch', '--cpus-per-task=2', '--error=logs/python_%j.err', '--job-name=python', '--output=logs/python_%j.out', '--time=04:00:00', '--mem=8G', '--qos=nf', '--licenses=h2resw01', '--export=EC_user_time_limit=04:00:00', '/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_python.slurm']
+[ECMWF-INFO -sbatch] - sbatch executed on ac
+[ECMWF-INFO -sbatch] - Job queued on ac using method local
+[ECMWF-INFO -sbatch] - Submitted batch job 37232907
+WARNING: The MAMBA_ROOT_PREFIX environment variable is not set.
+WARNING: This is required for mamba to work correctly as of 2.0.
+WARNING: 
+WARNING: For now, we are setting 'MAMBA_ROOT_PREFIX' to '/usr/local/apps/conda/26.1.1-3'.
+WARNING: 
+WARNING: Please make sure this is consistent with your installation or alternatively (by order of preference):
+WARNING:   - rerun 'mamba shell init' to initialize mamba for your current shell
+WARNING:   - manually set 'MAMBA_ROOT_PREFIX' to the root of your installation in your shell profile script.
+WARNING:   - use the '-r,--root-prefix' CLI option when calling mamba.
+WARNING: 
+WARNING: This message originates from /usr/local/apps/conda/26.1.1-3/etc/profile.d/mamba.sh
+[1789473331.219907] [ac6-130:4030874:0]           gdaki.c:1227 UCX  ERROR cuDeviceGetCount(&cuda_dev_count) failed: initialization error
+[1789473331.269346] [ac6-130:4030874:0]        ib_iface.c:2085 UCX  WARN  ibv_query_port_speed(mlx5_0:1/IB, port_num=1) failed: Protocol not supported
+[1789473331.271944] [ac6-130:4030874:0]        ib_iface.c:2085 UCX  WARN  ibv_query_port_speed(mlx5_0:1/IB, port_num=1) failed: Protocol not supported
+[1789473331.292847] [ac6-130:4030874:0]        ib_iface.c:2085 UCX  WARN  ibv_query_port_speed(mlx5_0:1/IB, port_num=1) failed: Protocol not supported
+[1789473331.297589] [ac6-130:4030874:0]        ib_iface.c:2085 UCX  WARN  ibv_query_port_speed(mlx5_0:1/IB, port_num=1) failed: Protocol not supported
+[1789473331.301360] [ac6-130:4030874:0]        ib_iface.c:2085 UCX  WARN  ibv_query_port_speed(mlx5_0:1/IB, port_num=1) failed: Protocol not supported
+[1789473331.312821] [ac6-130:4030874:0]        ib_iface.c:2085 UCX  WARN                ibv_query_port_speed(mlx5_0:1/IB, port_num=1) failed: Protocol not supported
+[1789473331.312844] [ac6-130:4030874:0]        ib_iface.c:2085 UCX  WARN                ibv_query_port_speed(mlx5_0:1/IB, port_num=1) failed: Protocol not supported
+[1789473331.321671] [ac6-130:4030874:0]        ib_iface.c:2085 UCX  WARN                ibv_query_port_speed(mlx5_0:1/IB, port_num=1) failed: Protocol not supported
+[1789473331.321714] [ac6-130:4030874:0]        ib_iface.c:2085 UCX  WARN                ibv_query_port_speed(mlx5_0:1/IB, port_num=1) failed: Protocol not supported
+[1789473331.321810] [ac6-130:4030874:0]        ib_iface.c:2085 UCX  WARN                ibv_query_port_speed(mlx5_0:1/IB, port_num=1) failed: Protocol not supported
+[1789473331.321828] [ac6-130:4030874:0]        ib_iface.c:2085 UCX  WARN                ibv_query_port_speed(mlx5_0:1/IB, port_num=1) failed: Protocol not supported
+[1789473331.321879] [ac6-130:4030874:0]        ib_iface.c:2085 UCX  WARN              ibv_query_port_speed(mlx5_0:1/IB, port_num=1) failed: Protocol not supported
+[1789473331.321927] [ac6-130:4030874:0]        ib_iface.c:2085 UCX  WARN                  ibv_query_port_speed(mlx5_0:1/IB, port_num=1) failed: Protocol not supported
+[1789473331.322268] [ac6-130:4030874:0]        ib_iface.c:2085 UCX  WARN              ibv_query_port_speed(mlx5_0:1/IB, port_num=1) failed: Protocol not supported
+[1789473331.322307] [ac6-130:4030874:0]        ib_iface.c:2085 UCX  WARN                  ibv_query_port_speed(mlx5_0:1/IB, port_num=1) failed: Protocol not supported
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199401_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199402_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199403_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199404_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199405_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199406_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199407_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199408_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199409_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199410_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199411_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199412_Madagascar_res_ERA5-Land.nc
+Done 1994
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199501_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199502_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199503_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199504_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199505_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199506_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199507_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199508_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199509_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199510_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199511_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199512_Madagascar_res_ERA5-Land.nc
+Done 1995
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199601_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199602_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199603_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199604_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199605_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199606_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199607_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199608_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199609_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199610_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199611_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199612_Madagascar_res_ERA5-Land.nc
+Done 1996
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199701_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199702_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199703_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199704_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199705_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199706_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199707_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199708_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199709_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199710_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199711_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199712_Madagascar_res_ERA5-Land.nc
+Done 1997
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199801_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199802_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199803_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199804_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199805_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199806_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199807_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199808_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199809_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199810_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199811_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199812_Madagascar_res_ERA5-Land.nc
+Done 1998
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199901_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199902_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199903_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199904_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199905_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199906_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199907_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199908_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199909_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199910_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199911_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_199912_Madagascar_res_ERA5-Land.nc
+Done 1999
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200001_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200002_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200003_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200004_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200005_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200006_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200007_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200008_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200009_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200010_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200011_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200012_Madagascar_res_ERA5-Land.nc
+Done 2000
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200101_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200102_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200103_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200104_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200105_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200106_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200107_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200108_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200109_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200110_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200111_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200112_Madagascar_res_ERA5-Land.nc
+Done 2001
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200201_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200202_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200203_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200204_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200205_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200206_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200207_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200208_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200209_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200210_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200211_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200212_Madagascar_res_ERA5-Land.nc
+Done 2002
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200301_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200302_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200303_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200304_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200305_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200306_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200307_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200308_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200309_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200310_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200311_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200312_Madagascar_res_ERA5-Land.nc
+Done 2003
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200401_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200402_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200403_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200404_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200405_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200406_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200407_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200408_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200409_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200410_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200411_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200412_Madagascar_res_ERA5-Land.nc
+Done 2004
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200501_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200502_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200503_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200504_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200505_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200506_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200507_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200508_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200509_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200510_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200511_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200512_Madagascar_res_ERA5-Land.nc
+Done 2005
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200601_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200602_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200603_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200604_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200605_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200606_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200607_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200608_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200609_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200610_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200611_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200612_Madagascar_res_ERA5-Land.nc
+Done 2006
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200701_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200702_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200703_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200704_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200705_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200706_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200707_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200708_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200709_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200710_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200711_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200712_Madagascar_res_ERA5-Land.nc
+Done 2007
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200801_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200802_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200803_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200804_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200805_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200806_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200807_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200808_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200809_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200810_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200811_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200812_Madagascar_res_ERA5-Land.nc
+Done 2008
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200901_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200902_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200903_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200904_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200905_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200906_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200907_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200908_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200909_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200910_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200911_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_200912_Madagascar_res_ERA5-Land.nc
+Done 2009
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201001_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201002_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201003_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201004_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201005_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201006_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201007_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201008_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201009_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201010_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201011_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201012_Madagascar_res_ERA5-Land.nc
+Done 2010
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201101_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201102_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201103_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201104_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201105_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201106_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201107_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201108_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201109_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201110_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201111_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201112_Madagascar_res_ERA5-Land.nc
+Done 2011
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201201_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201202_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201203_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201204_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201205_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201206_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201207_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201208_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201209_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201210_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201211_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201212_Madagascar_res_ERA5-Land.nc
+Done 2012
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201301_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201302_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201303_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201304_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201305_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201306_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201307_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201308_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201309_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201310_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201311_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201312_Madagascar_res_ERA5-Land.nc
+Done 2013
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201401_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201402_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201403_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201404_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201405_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201406_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201407_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201408_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201409_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201410_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201411_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201412_Madagascar_res_ERA5-Land.nc
+Done 2014
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201501_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201502_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201503_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201504_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201505_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201506_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201507_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201508_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201509_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201510_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201511_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201512_Madagascar_res_ERA5-Land.nc
+Done 2015
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201601_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201602_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201603_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201604_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201605_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201606_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201607_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201608_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201609_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201610_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201611_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201612_Madagascar_res_ERA5-Land.nc
+Done 2016
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201701_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201702_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201703_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201704_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201705_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201706_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201707_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201708_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201709_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201710_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201711_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201712_Madagascar_res_ERA5-Land.nc
+Done 2017
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201801_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201802_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201803_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201804_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201805_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201806_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201807_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201808_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201809_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201810_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201811_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201812_Madagascar_res_ERA5-Land.nc
+Done 2018
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201901_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201902_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201903_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201904_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201905_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201906_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201907_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201908_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201909_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201910_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201911_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_201912_Madagascar_res_ERA5-Land.nc
+Done 2019
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202001_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202002_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202003_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202004_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202005_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202006_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202007_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202008_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202009_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202010_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202011_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202012_Madagascar_res_ERA5-Land.nc
+Done 2020
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202101_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202102_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202103_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202104_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202105_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202106_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202107_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202108_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202109_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202110_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202111_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202112_Madagascar_res_ERA5-Land.nc
+Done 2021
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202201_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202202_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202203_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202204_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202205_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202206_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202207_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202208_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202209_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202210_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202211_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202212_Madagascar_res_ERA5-Land.nc
+Done 2022
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202301_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202302_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202303_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202304_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202305_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202306_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202307_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202308_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202309_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202310_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202311_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202312_Madagascar_res_ERA5-Land.nc
+Done 2023
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202401_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202402_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202403_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202404_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202405_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202406_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202407_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202408_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202409_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202410_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202411_Madagascar_res_ERA5-Land.nc
+Saved /ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/precip_daily_202412_Madagascar_res_ERA5-Land.nc
+Done 2024

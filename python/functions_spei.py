@@ -39,6 +39,16 @@ def subset_box(da, box):
     )
 
 
+def standardize_latlon(da):
+    rename_dict = {}
+    if "latitude" in da.dims or "latitude" in da.coords:
+        rename_dict["latitude"] = "lat"
+    if "longitude" in da.dims or "longitude" in da.coords:
+        rename_dict["longitude"] = "lon"
+    if rename_dict:
+        da = da.rename(rename_dict)
+    return da
+
 # ---------------------------------------------------------------- extraterrestrial Ra
 def _ra_daily(lat_rad, doys):
     """Daily Ra (MJ/m²/day), fully vectorized.

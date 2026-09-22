@@ -1,0 +1,76 @@
+[ECMWF-INFO -ecprofile] /usr/bin/bash NON_INTERACTIVE on ac6-160 at 20260915_093818.829, PID: 2876225, JOBID: 37193372
+[ECMWF-INFO -ecprofile] $SCRATCH=/ec/res4/scratch/ecme4047
+[ECMWF-INFO -ecprofile] $PERM=/perm/ecme4047
+[ECMWF-INFO -ecprofile] $HPCPERM=/ec/res4/hpcperm/ecme4047
+[ECMWF-INFO -ecprofile] $TMPDIR=/etc/ecmwf/ssd/ssd1/tmpdirs/ecme4047.37193372
+[ECMWF-INFO -ecprofile] $SCRATCHDIR=/ec/res4/scratchdir/ecme4047/4/37193372
+
+Lmod is automatically replacing "prgenv/gnu" with "conda/26.1.1-3".
+
+-------------------------------------------------------------------------------
+There are messages associated with the following module(s):
+-------------------------------------------------------------------------------
+
+conda/26.1.1-3:
+   Using conda effectively disables any other loaded modules. Use "module
+   reset" to return to the default environment.
+
+-------------------------------------------------------------------------------
+
+/perm/ecme4047/conda/envs/xesmf_env/lib/python3.14/site-packages/xesmf/backend.py:57: UserWarning: Latitude is outside of [-90, 90]
+  warnings.warn('Latitude is outside of [-90, 90]')
+Traceback (most recent call last):
+  File "/home/ecme4047/ALBATROSS_code/python/regrid_MSWEP_to_ERA5-Land.py", line 133, in <module>
+    regridder = build_regridder(1993, weights_file, country)
+  File "/home/ecme4047/ALBATROSS_code/python/regrid_MSWEP_to_ERA5-Land.py", line 119, in build_regridder
+    regridder = xe.Regridder(
+        sample_src,
+    ...<3 lines>...
+        weights=weights_path
+    )
+  File "/perm/ecme4047/conda/envs/xesmf_env/lib/python3.14/site-packages/xesmf/frontend.py", line 1031, in __init__
+    super().__init__(
+    ~~~~~~~~~~~~~~~~^
+        grid_in,
+        ^^^^^^^^
+    ...<5 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "/perm/ecme4047/conda/envs/xesmf_env/lib/python3.14/site-packages/xesmf/frontend.py", line 430, in __init__
+    self.weights = read_weights(weights, self.n_in, self.n_out)
+                   ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/perm/ecme4047/conda/envs/xesmf_env/lib/python3.14/site-packages/xesmf/smm.py", line 42, in read_weights
+    weights = _parse_coords_and_values(weights, n_in, n_out)
+  File "/perm/ecme4047/conda/envs/xesmf_env/lib/python3.14/site-packages/xesmf/smm.py", line 75, in _parse_coords_and_values
+    raise IOError(f'Weights file not found on disk.\n{indata}')
+OSError: Weights file not found on disk.
+/ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land/weights_mswep_to_era5land_Madagascar.nc
+[ECMWF-INFO -ecepilog] ----------------------------------------------------------------------------------------------------
+[ECMWF-INFO -ecepilog] This is the ECMWF job Epilogue
+[ECMWF-INFO -ecepilog] +++ Please report issues using the Support portal +++
+[ECMWF-INFO -ecepilog] +++ https://support.ecmwf.int                     +++
+[ECMWF-INFO -ecepilog] ----------------------------------------------------------------------------------------------------
+[ECMWF-INFO -ecepilog] Run at 2026-09-15T09:38:28 on ac
+[ECMWF-INFO -ecepilog] JobName                   : python
+[ECMWF-INFO -ecepilog] JobID                     : 37193372
+[ECMWF-INFO -ecepilog] Submit                    : 2026-09-15T09:38:02
+[ECMWF-INFO -ecepilog] Start                     : 2026-09-15T09:38:15
+[ECMWF-INFO -ecepilog] End                       : 2026-09-15T09:38:28
+[ECMWF-INFO -ecepilog] QueuedTime                : 13.0
+[ECMWF-INFO -ecepilog] ElapsedRaw                : 13
+[ECMWF-INFO -ecepilog] ExitCode                  : 1:0
+[ECMWF-INFO -ecepilog] DerivedExitCode           : 0:0
+[ECMWF-INFO -ecepilog] State                     : FAILED
+[ECMWF-INFO -ecepilog] Account                   : spitport
+[ECMWF-INFO -ecepilog] QOS                       : nf
+[ECMWF-INFO -ecepilog] User                      : ecme4047
+[ECMWF-INFO -ecepilog] StdOut                    : /etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/logs/python_37193372.out
+[ECMWF-INFO -ecepilog] StdErr                    : /etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/logs/python_37193372.err
+[ECMWF-INFO -ecepilog] NNodes                    : 1
+[ECMWF-INFO -ecepilog] NCPUS                     : 2
+[ECMWF-INFO -ecepilog] SBU                       : 0.062
+[ECMWF-INFO -ecepilog] jobtag                    : ecme4047-python-1x2-/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/logs/python__JOBID_.out
+[ECMWF-INFO -ecepilog] ----------------------------------------------------------------------------------------------------
+

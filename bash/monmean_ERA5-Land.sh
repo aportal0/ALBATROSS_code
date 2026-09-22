@@ -2,14 +2,14 @@
 
 module load atmos/cdo/2.3.0
 
-indir="/home/PERSONALE/alice.portal2/scratch/ERA5-Land/t2m/daily"
-outdir="/home/PERSONALE/alice.portal2/scratch/ERA5-Land/t2m/monthly"
+indir="/ec/res4/scratch/ecme4047/ERA5-Land/t2m/daily"
+outdir="/ec/res4/scratch/ecme4047/ERA5-Land/t2m/monthly"
 
 mkdir -p "$outdir"
 
-stats="maximum"
+stats="minimum"
 
-for year in $(seq 1993 2025); do
+for year in $(seq 2021 2021); do
 
     echo "Processing $year"
 

@@ -3,8 +3,8 @@
 #SBATCH --output=logs/python_%j.out
 #SBATCH --error=logs/python_%j.err
 #SBATCH --time=04:00:00
-#SBATCH --cpus-per-task=2
-#SBATCH --mem=8G
+#SBATCH --cpus-per-task=3
+#SBATCH --mem=12G
 
 mkdir -p logs
 HOST=$(hostname -s)
@@ -29,4 +29,4 @@ fi
 
 
 # Run job
-python ${dir_code}compute_spei_debug.py
+python ${dir_code}cut_MSWEP_country.py 
