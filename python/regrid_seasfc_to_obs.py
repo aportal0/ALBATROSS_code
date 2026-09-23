@@ -7,20 +7,22 @@ import pandas as pd
 import calendar
 
 # -----------------------------
-# Paths
+# Parameters and paths
 # -----------------------------
-dir_scratch = fSPEI.get_scratch_path()
+model = "ecmwf51"
+init  = 10
+list_var = ["t2m-max", "t2m-min", "tp"]
 
+dir_scratch = fSPEI.get_scratch_path()
 dir_mswep = dir_scratch + "MSWEP/MSWEP_V316_test/Past/Daily/"
 dir_era5  = dir_scratch + "ERA5-Land/t2m/daily/"
-dir_out   = dir_mswep + "regridded_ERA5-Land/"
+dir_model = dir_scratch + f"C3S_seasonal/{model}/" # "24h/init_{init}/"
 
 country = "Madagascar"
-weights_file = os.path.join(dir_out, f"weights_mswep_to_era5land_{country.lower()}.nc")
+weights_file = os.path.join(dir_model, f"weights_{model}_to_era5land_{country.lower()}.nc")
 
-years = range(1994, 2024 + 1)
+years = range(1993, 1993 + 1)
 
-os.makedirs(dir_out, exist_ok=True)
 
 
 # -----------------------------
@@ -61,50 +63,58 @@ def build_target_grid(name_country):
     return da
 
 
-def open_mswep_daily_file(year, day_no):
+def open_model_file(model, varname, year, month_init):
     """
-    Open one MSWEP daily file named YYYYDDD.nc
+    Open one model daily precipitation file.
     """
-    fname = f"{year}{day_no:03d}.nc"
-    fpath = os.path.join(dir_mswep, fname)
+    fdir = dir_model + f"24h/init_{month_init:02d}/{varname}/" 
+    fname = f"{varname}_24h_{model}_init{year}{month_init:02d}_subsaharan-africa.nc"
+    fpath = os.path.join(fdir, fname)
 
     if not os.path.exists(fpath):
         return None
 
     ds = xr.open_dataset(fpath)
 
-    if "precipitation" not in ds:
-        raise KeyError(f"'precipitation' not found in {fpath}")
-
-    da = ds["precipitation"]
+    var = varname_to_var(varname)
+    if var not in ds:
+        raise KeyError(f"{var} not found in {fpath}")
+    da = ds[var]
     da = fSPEI.standardize_latlon(da)
-
-    # remove singleton time dimension if present
-    if "time" in da.dims and da.sizes["time"] == 1:
-        da = da.isel(time=0, drop=True)
-
-    # assign time from year + day_of_year
-    date = pd.Timestamp(f"{year}-01-01") + pd.Timedelta(days=day_no - 1)
-    da = da.expand_dims(time=[date])
 
     return da
 
 
-def build_regridder(year, weights_path=None, name_country):
+def varname_to_var(varname):
+    """
+    Return variable (used in file) from name variable (used for file name).
+    """
+    if varname == "tp":
+        return varname
+    if varname == "t2m-max":
+        return "mx2t24"
+    if varname == "t2m-min":
+        return "mn2t24"
+
+
+def build_regridder(model, year, name_country, weights_path=None):
     """
     Reuse existing Madagascar conservative weights.
     """
     target = build_target_grid(name_country)
 
-    # find one MSWEP file as source template
+    # find one model file as source template
     sample_src = None
-    for day_no in range(1, 367):
-        sample_src = open_mswep_daily_file(year, day_no)
-        if sample_src is not None:
+    for month_init in range(1, 12):
+        sample_src = open_model_file(model, "tp", year, month_init)
+        # remove time dimension
+        if sample_src is not None: 
+            if "forecast_period" in sample_src.dims:
+                sample_src = sample_src.isel(forecast_period=24, drop=True)
             break
 
     if sample_src is None:
-        raise FileNotFoundError("No sample MSWEP daily file found for building regridder.")
+        raise FileNotFoundError("No sample model daily file found for building regridder.")
 
     if weights_path and os.path.exists(weights_path):
         # reuse saved weights
@@ -133,42 +143,33 @@ def build_regridder(year, weights_path=None, name_country):
 # -----------------------------
 # Main
 # -----------------------------
-regridder = build_regridder(1993, weights_file, country)
+regridder = build_regridder(model, 1993, country, weights_file)
 
-for year in years:
-    max_day = 366 if calendar.isleap(year) else 365
-    daily_list = []
-
-    for day_no in range(1, max_day+1):
-        da_day = open_mswep_daily_file(year, day_no)
-
-        if da_day is None:
-            print(f"Missing file: {year}{day_no:03d}.nc")
-            continue
-
-        da_rg = regridder(da_day)
-        da_rg = da_rg.rename("precipitation")
-        daily_list.append(da_rg)
-
-    if not daily_list:
-        print(f"No valid daily MSWEP files found for {year}")
-        continue
-
-    precip_daily = xr.concat(daily_list, dim="time").sortby("time")
-
-    # Group by month and save one file per month
-    months = precip_daily.groupby("time.month")
-    for month, da_month in months:
+for varname in list_var:
+    dir_in    = dir_model + f"24h/init_{init:02d}/{varname}/"  
+    dir_out    = dir_model + f"24h/init_{init:02d}/{varname}/regridded_ERA5-Land/"  
+    os.makedirs(dir_out, exist_ok=True)
+    var = varname_to_var(varname)
+    
+    for year in years:
+        da_year = None
+        da_year = open_model_file(model, varname, year, init)
+    
+        if da_year is None:
+            print(f"Missing file: {varname}_24h_{model}_init{year}{init:02d}_subsaharan-africa.nc")
+            continue 
+            
+        da_rg = regridder(da_year)
+        da_rg = da_rg.rename(var)
+    
+        # Save one file per year
         ds_out = xr.Dataset({
-            "precipitation": da_month
-        })
-
+                var: da_rg
+            })
         out_file = os.path.join(
-            dir_out,
-            f"precip_daily_{year}{month:02d}_{country}_res_ERA5-Land.nc"
-        )
+                dir_out,
+                f"{varname}_24h_{model}_init{year}{init:02d}_subsaharan-africa_res_ERA5-Land.nc"
+            )
         ds_out.to_netcdf(out_file)
-
+    
         print(f"Saved {out_file}")
-
-    print(f"Done {year}")
