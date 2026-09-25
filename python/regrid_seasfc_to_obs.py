@@ -11,7 +11,7 @@ import calendar
 # -----------------------------
 model = "ecmwf51"
 init  = 10
-list_var = ["t2m-max", "t2m-min", "tp"]
+list_var = ["tp"]                               # ["t2m-max", "t2m-min", "tp"]
 
 dir_scratch = fSPEI.get_scratch_path()
 dir_mswep = dir_scratch + "MSWEP/MSWEP_V316_test/Past/Daily/"
@@ -19,15 +19,29 @@ dir_era5  = dir_scratch + "ERA5-Land/t2m/daily/"
 dir_model = dir_scratch + f"C3S_seasonal/{model}/" # "24h/init_{init}/"
 
 country = "Madagascar"
-weights_file = os.path.join(dir_model, f"weights_{model}_to_era5land_{country.lower()}.nc")
+method_regrid = "patch"
+weights_file = os.path.join(dir_model, f"weights_{model}_to_era5land_{method_regrid}_{country.lower()}.nc")
 
-years = range(1993, 1993 + 1)
+years = range(1993, 2025 + 1)
 
 
 
 # -----------------------------
 # Helpers
 # -----------------------------
+def deaccumulate(da, time_dim):
+    """
+    Convert accumulated-since-forecast-start precipitation to per-day increments.
+
+    Assumes each step holds the total accumulated from t0 to that valid time,
+    and that the steps are contiguous 24h apart within one forecast.
+    """
+    incr = da.diff(time_dim, label="upper")        # day n minus day n-1
+    first = da.isel({time_dim: 0})                 # day 1 = accumulation itself
+    out = xr.concat([first.expand_dims(time_dim), incr], dim=time_dim)
+    return out.clip(min=0.0)                       # kill tiny negative round-off
+
+
 def find_one_era5_file(year):
     year_dir = os.path.join(dir_era5, str(year))
     files = sorted(
@@ -97,9 +111,9 @@ def varname_to_var(varname):
         return "mn2t24"
 
 
-def build_regridder(model, year, name_country, weights_path=None):
+def build_regridder(model, year, name_country, weights_path=None, method="bilinear"):
     """
-    Reuse existing Madagascar conservative weights.
+    Reuse existing Madagascar weights.
     """
     target = build_target_grid(name_country)
 
@@ -121,7 +135,7 @@ def build_regridder(model, year, name_country, weights_path=None):
         return xe.Regridder(
             sample_src,
             target,
-            method="conservative",
+            method=method,
             periodic=False,
             weights=weights_path
         )
@@ -129,7 +143,7 @@ def build_regridder(model, year, name_country, weights_path=None):
     regridder = xe.Regridder(
             sample_src, 
             target, 
-            method="conservative",
+            method=method,
             periodic=False, 
             reuse_weights=False
             )
@@ -143,7 +157,9 @@ def build_regridder(model, year, name_country, weights_path=None):
 # -----------------------------
 # Main
 # -----------------------------
-regridder = build_regridder(model, 1993, country, weights_file)
+regridder = build_regridder(model, 1993, country, weights_file, method_regrid)
+target = build_target_grid(country)
+land_mask = target.notnull()                # True where ERA5-Land has data
 
 for varname in list_var:
     dir_in    = dir_model + f"24h/init_{init:02d}/{varname}/"  
@@ -154,13 +170,19 @@ for varname in list_var:
     for year in years:
         da_year = None
         da_year = open_model_file(model, varname, year, init)
-    
         if da_year is None:
             print(f"Missing file: {varname}_24h_{model}_init{year}{init:02d}_subsaharan-africa.nc")
             continue 
-            
-        da_rg = regridder(da_year)
+        
+        # Deaccumulate precipitaion values
+        if varname == "tp":
+            da_year = deaccumulate(da_year, "forecast_period")
+
+        # Regrid daily values
+        da_rg = regridder(da_year, skipna=True, na_thres=0.5)
+        da_rg = da_rg.where(land_mask)
         da_rg = da_rg.rename(var)
+        da_rg.attrs["units"] = "m"
     
         # Save one file per year
         ds_out = xr.Dataset({
@@ -168,7 +190,7 @@ for varname in list_var:
             })
         out_file = os.path.join(
                 dir_out,
-                f"{varname}_24h_{model}_init{year}{init:02d}_subsaharan-africa_res_ERA5-Land.nc"
+                f"{varname}_24h_{model}_init{year}{init:02d}_{country}_res_ERA5-Land_{method_regrid}.nc"
             )
         ds_out.to_netcdf(out_file)
     
