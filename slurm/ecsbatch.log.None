@@ -1,0 +1,360 @@
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] -  This is the ECMWF jobfilter
+[ECMWF-INFO -sbatch] -  +++ Please report issues using the Support portal +++
+[ECMWF-INFO -sbatch] -  +++ https://support.ecmwf.int                     +++
+[ECMWF-INFO -sbatch] -  /usr/local/bin/ecsbatch: size: 54518, mtime: Thu Aug  6 13:29:49 2026
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] - Time at submit: Fri Sep 25 07:44:46 2026 (1790322286.0513172) on ac6-102.bullx:/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm
+[ECMWF-INFO -sbatch] - --- SLURM VARIABLES ---
+[ECMWF-INFO -sbatch] - EC_CLUSTER=ac
+[ECMWF-INFO -sbatch] - SLURM_EXPORT_ENV=ALL
+[ECMWF-INFO -sbatch] - SBATCH_EXPORT=NONE
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - jobscript: /etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_calibrate_parallel.slurm
+[ECMWF-INFO -sbatch] - --- SCRIPT OPTIONS ---
+[ECMWF-INFO -sbatch] - #SBATCH --job-name=drydays
+[ECMWF-INFO -sbatch] - #SBATCH --account=ecme4047
+[ECMWF-INFO -sbatch] - #SBATCH --partition=gp
+[ECMWF-INFO -sbatch] - #SBATCH --nodes=1
+[ECMWF-INFO -sbatch] - #SBATCH --ntasks=1
+[ECMWF-INFO -sbatch] - #SBATCH --cpus-per-task=8
+[ECMWF-INFO -sbatch] - #SBATCH --mem=32G
+[ECMWF-INFO -sbatch] - #SBATCH --time=01:00:00
+[ECMWF-INFO -sbatch] - #SBATCH --output=logs/drydays_%j.out
+[ECMWF-INFO -sbatch] - #SBATCH --error=logs/drydays_%j.err
+[ECMWF-INFO -sbatch] - #SBATCH --qos=nf
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - --- POST-PROCESSED OPTIONS ---
+[ECMWF-INFO -sbatch] - ARG --positional=['run_calibrate_parallel.slurm']
+[ECMWF-INFO -sbatch] - ARG --account=ecme4047
+[ECMWF-INFO -sbatch] - ARG --cpus_per_task=8
+[ECMWF-INFO -sbatch] - ARG --error=logs/drydays_%j.err
+[ECMWF-INFO -sbatch] - ARG --job_name=drydays
+[ECMWF-INFO -sbatch] - ARG --ntasks=1
+[ECMWF-INFO -sbatch] - ARG --nodes=1
+[ECMWF-INFO -sbatch] - ARG --output=logs/drydays_%j.out
+[ECMWF-INFO -sbatch] - ARG --partition=gp
+[ECMWF-INFO -sbatch] - ARG --qos=nf
+[ECMWF-INFO -sbatch] - ARG --time=01:00:00
+[ECMWF-INFO -sbatch] - ARG --mem=32G
+[ECMWF-INFO -sbatch] - ------------------------------
+[ECMWF-INFO -sbatch] - jobtag: ecme4047-drydays-1x8-/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/logs/drydays__JOBID_.out
+[ECMWF-INFO -sbatch] - ['/usr/bin/sbatch', '--account=ecme4047', '--cpus-per-task=8', '--error=logs/drydays_%j.err', '--job-name=drydays', '--ntasks=1', '--nodes=1', '--output=logs/drydays_%j.out', '--partition=gp', '--qos=nf', '--time=01:00:00', '--mem=32G', '--licenses=h2resw01', '--export=EC_user_time_limit=01:00:00', '/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_calibrate_parallel.slurm']
+[ECMWF-INFO -sbatch] - sbatch executed on ac
+[ECMWF-INFO -sbatch] - Job queued on ac using method local
+[ECMWF-ERROR-sbatch] - ac: sbatch: error: invalid partition specified: gp
+sbatch: error: Batch job submission failed: Invalid partition name specified
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] -  This is the ECMWF jobfilter
+[ECMWF-INFO -sbatch] -  +++ Please report issues using the Support portal +++
+[ECMWF-INFO -sbatch] -  +++ https://support.ecmwf.int                     +++
+[ECMWF-INFO -sbatch] -  /usr/local/bin/ecsbatch: size: 54518, mtime: Thu Aug  6 13:29:49 2026
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] - Time at submit: Fri Sep 25 07:47:36 2026 (1790322456.0514264) on ac6-102.bullx:/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm
+[ECMWF-INFO -sbatch] - --- SLURM VARIABLES ---
+[ECMWF-INFO -sbatch] - EC_CLUSTER=ac
+[ECMWF-INFO -sbatch] - SLURM_EXPORT_ENV=ALL
+[ECMWF-INFO -sbatch] - SBATCH_EXPORT=NONE
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - jobscript: /etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_calibrate_parallel.slurm
+[ECMWF-INFO -sbatch] - --- SCRIPT OPTIONS ---
+[ECMWF-INFO -sbatch] - #SBATCH --job-name=drydays
+[ECMWF-INFO -sbatch] - #SBATCH --account=ecme4047
+[ECMWF-INFO -sbatch] - #SBATCH --partition=nf
+[ECMWF-INFO -sbatch] - #SBATCH --nodes=1
+[ECMWF-INFO -sbatch] - #SBATCH --ntasks=1
+[ECMWF-INFO -sbatch] - #SBATCH --cpus-per-task=8
+[ECMWF-INFO -sbatch] - #SBATCH --mem=32G
+[ECMWF-INFO -sbatch] - #SBATCH --time=01:00:00
+[ECMWF-INFO -sbatch] - #SBATCH --output=logs/drydays_%j.out
+[ECMWF-INFO -sbatch] - #SBATCH --error=logs/drydays_%j.err
+[ECMWF-INFO -sbatch] - #SBATCH --qos=nf
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - --- POST-PROCESSED OPTIONS ---
+[ECMWF-INFO -sbatch] - ARG --positional=['run_calibrate_parallel.slurm']
+[ECMWF-INFO -sbatch] - ARG --account=ecme4047
+[ECMWF-INFO -sbatch] - ARG --cpus_per_task=8
+[ECMWF-INFO -sbatch] - ARG --error=logs/drydays_%j.err
+[ECMWF-INFO -sbatch] - ARG --job_name=drydays
+[ECMWF-INFO -sbatch] - ARG --ntasks=1
+[ECMWF-INFO -sbatch] - ARG --nodes=1
+[ECMWF-INFO -sbatch] - ARG --output=logs/drydays_%j.out
+[ECMWF-INFO -sbatch] - ARG --partition=nf
+[ECMWF-INFO -sbatch] - ARG --qos=nf
+[ECMWF-INFO -sbatch] - ARG --time=01:00:00
+[ECMWF-INFO -sbatch] - ARG --mem=32G
+[ECMWF-INFO -sbatch] - ------------------------------
+[ECMWF-INFO -sbatch] - jobtag: ecme4047-drydays-1x8-/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/logs/drydays__JOBID_.out
+[ECMWF-INFO -sbatch] - ['/usr/bin/sbatch', '--account=ecme4047', '--cpus-per-task=8', '--error=logs/drydays_%j.err', '--job-name=drydays', '--ntasks=1', '--nodes=1', '--output=logs/drydays_%j.out', '--partition=nf', '--qos=nf', '--time=01:00:00', '--mem=32G', '--licenses=h2resw01', '--export=EC_user_time_limit=01:00:00', '/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_calibrate_parallel.slurm']
+[ECMWF-INFO -sbatch] - sbatch executed on ac
+[ECMWF-INFO -sbatch] - Job queued on ac using method local
+[ECMWF-ERROR-sbatch] - ac: sbatch: error: invalid partition specified: nf
+sbatch: error: Batch job submission failed: Invalid partition name specified
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] -  This is the ECMWF jobfilter
+[ECMWF-INFO -sbatch] -  +++ Please report issues using the Support portal +++
+[ECMWF-INFO -sbatch] -  +++ https://support.ecmwf.int                     +++
+[ECMWF-INFO -sbatch] -  /usr/local/bin/ecsbatch: size: 54518, mtime: Thu Aug  6 13:29:49 2026
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] - Time at submit: Fri Sep 25 07:47:47 2026 (1790322467.8655827) on ac6-102.bullx:/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm
+[ECMWF-INFO -sbatch] - --- SLURM VARIABLES ---
+[ECMWF-INFO -sbatch] - EC_CLUSTER=ac
+[ECMWF-INFO -sbatch] - SLURM_EXPORT_ENV=ALL
+[ECMWF-INFO -sbatch] - SBATCH_EXPORT=NONE
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - jobscript: /etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_calibrate_parallel.slurm
+[ECMWF-INFO -sbatch] - --- SCRIPT OPTIONS ---
+[ECMWF-INFO -sbatch] - #SBATCH --job-name=drydays
+[ECMWF-INFO -sbatch] - #SBATCH --account=ecme4047
+[ECMWF-INFO -sbatch] - #SBATCH --nodes=1
+[ECMWF-INFO -sbatch] - #SBATCH --ntasks=1
+[ECMWF-INFO -sbatch] - #SBATCH --cpus-per-task=8
+[ECMWF-INFO -sbatch] - #SBATCH --mem=32G
+[ECMWF-INFO -sbatch] - #SBATCH --time=01:00:00
+[ECMWF-INFO -sbatch] - #SBATCH --output=logs/drydays_%j.out
+[ECMWF-INFO -sbatch] - #SBATCH --error=logs/drydays_%j.err
+[ECMWF-INFO -sbatch] - #SBATCH --qos=nf
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - --- POST-PROCESSED OPTIONS ---
+[ECMWF-INFO -sbatch] - ARG --positional=['run_calibrate_parallel.slurm']
+[ECMWF-INFO -sbatch] - ARG --account=ecme4047
+[ECMWF-INFO -sbatch] - ARG --cpus_per_task=8
+[ECMWF-INFO -sbatch] - ARG --error=logs/drydays_%j.err
+[ECMWF-INFO -sbatch] - ARG --job_name=drydays
+[ECMWF-INFO -sbatch] - ARG --ntasks=1
+[ECMWF-INFO -sbatch] - ARG --nodes=1
+[ECMWF-INFO -sbatch] - ARG --output=logs/drydays_%j.out
+[ECMWF-INFO -sbatch] - ARG --qos=nf
+[ECMWF-INFO -sbatch] - ARG --time=01:00:00
+[ECMWF-INFO -sbatch] - ARG --mem=32G
+[ECMWF-INFO -sbatch] - ------------------------------
+[ECMWF-INFO -sbatch] - jobtag: ecme4047-drydays-1x8-/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/logs/drydays__JOBID_.out
+[ECMWF-INFO -sbatch] - ['/usr/bin/sbatch', '--account=ecme4047', '--cpus-per-task=8', '--error=logs/drydays_%j.err', '--job-name=drydays', '--ntasks=1', '--nodes=1', '--output=logs/drydays_%j.out', '--qos=nf', '--time=01:00:00', '--mem=32G', '--licenses=h2resw01', '--export=EC_user_time_limit=01:00:00', '/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_calibrate_parallel.slurm']
+[ECMWF-INFO -sbatch] - sbatch executed on ac
+[ECMWF-INFO -sbatch] - Job queued on ac using method local
+[ECMWF-ERROR-sbatch] - ac: sbatch: error: Batch job submission failed: Invalid account or account/partition combination specified
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] -  This is the ECMWF jobfilter
+[ECMWF-INFO -sbatch] -  +++ Please report issues using the Support portal +++
+[ECMWF-INFO -sbatch] -  +++ https://support.ecmwf.int                     +++
+[ECMWF-INFO -sbatch] -  /usr/local/bin/ecsbatch: size: 54518, mtime: Thu Aug  6 13:29:49 2026
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] - Time at submit: Fri Sep 25 07:49:08 2026 (1790322548.140466) on ac6-102.bullx:/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm
+[ECMWF-INFO -sbatch] - --- SLURM VARIABLES ---
+[ECMWF-INFO -sbatch] - EC_CLUSTER=ac
+[ECMWF-INFO -sbatch] - SLURM_EXPORT_ENV=ALL
+[ECMWF-INFO -sbatch] - SBATCH_EXPORT=NONE
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - jobscript: /etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_calibrate_parallel.slurm
+[ECMWF-INFO -sbatch] - --- SCRIPT OPTIONS ---
+[ECMWF-INFO -sbatch] - #SBATCH --job-name=drydays
+[ECMWF-INFO -sbatch] - #SBATCH --account=ecme4047
+[ECMWF-INFO -sbatch] - #SBATCH --partition=gpil
+[ECMWF-INFO -sbatch] - #SBATCH --nodes=1
+[ECMWF-INFO -sbatch] - #SBATCH --ntasks=1
+[ECMWF-INFO -sbatch] - #SBATCH --cpus-per-task=8
+[ECMWF-INFO -sbatch] - #SBATCH --mem=32G
+[ECMWF-INFO -sbatch] - #SBATCH --time=01:00:00
+[ECMWF-INFO -sbatch] - #SBATCH --output=logs/drydays_%j.out
+[ECMWF-INFO -sbatch] - #SBATCH --error=logs/drydays_%j.err
+[ECMWF-INFO -sbatch] - #SBATCH --qos=nf
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - --- POST-PROCESSED OPTIONS ---
+[ECMWF-INFO -sbatch] - ARG --positional=['run_calibrate_parallel.slurm']
+[ECMWF-INFO -sbatch] - ARG --account=ecme4047
+[ECMWF-INFO -sbatch] - ARG --cpus_per_task=8
+[ECMWF-INFO -sbatch] - ARG --error=logs/drydays_%j.err
+[ECMWF-INFO -sbatch] - ARG --job_name=drydays
+[ECMWF-INFO -sbatch] - ARG --ntasks=1
+[ECMWF-INFO -sbatch] - ARG --nodes=1
+[ECMWF-INFO -sbatch] - ARG --output=logs/drydays_%j.out
+[ECMWF-INFO -sbatch] - ARG --partition=gpil
+[ECMWF-INFO -sbatch] - ARG --qos=nf
+[ECMWF-INFO -sbatch] - ARG --time=01:00:00
+[ECMWF-INFO -sbatch] - ARG --mem=32G
+[ECMWF-INFO -sbatch] - ------------------------------
+[ECMWF-INFO -sbatch] - jobtag: ecme4047-drydays-1x8-/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/logs/drydays__JOBID_.out
+[ECMWF-INFO -sbatch] - ['/usr/bin/sbatch', '--account=ecme4047', '--cpus-per-task=8', '--error=logs/drydays_%j.err', '--job-name=drydays', '--ntasks=1', '--nodes=1', '--output=logs/drydays_%j.out', '--partition=gpil', '--qos=nf', '--time=01:00:00', '--mem=32G', '--licenses=h2resw01', '--export=EC_user_time_limit=01:00:00', '/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_calibrate_parallel.slurm']
+[ECMWF-INFO -sbatch] - sbatch executed on ac
+[ECMWF-INFO -sbatch] - Job queued on ac using method local
+[ECMWF-ERROR-sbatch] - ac: sbatch: error: Batch job submission failed: Invalid account or account/partition combination specified
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] -  This is the ECMWF jobfilter
+[ECMWF-INFO -sbatch] -  +++ Please report issues using the Support portal +++
+[ECMWF-INFO -sbatch] -  +++ https://support.ecmwf.int                     +++
+[ECMWF-INFO -sbatch] -  /usr/local/bin/ecsbatch: size: 54518, mtime: Thu Aug  6 13:29:49 2026
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] - Time at submit: Fri Sep 25 07:49:28 2026 (1790322568.2618089) on ac6-102.bullx:/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm
+[ECMWF-INFO -sbatch] - --- SLURM VARIABLES ---
+[ECMWF-INFO -sbatch] - EC_CLUSTER=ac
+[ECMWF-INFO -sbatch] - SLURM_EXPORT_ENV=ALL
+[ECMWF-INFO -sbatch] - SBATCH_EXPORT=NONE
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - jobscript: /etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_calibrate_parallel.slurm
+[ECMWF-INFO -sbatch] - --- SCRIPT OPTIONS ---
+[ECMWF-INFO -sbatch] - #SBATCH --job-name=drydays
+[ECMWF-INFO -sbatch] - #SBATCH --account=ecme4047
+[ECMWF-INFO -sbatch] - #SBATCH --partition=ng
+[ECMWF-INFO -sbatch] - #SBATCH --nodes=1
+[ECMWF-INFO -sbatch] - #SBATCH --ntasks=1
+[ECMWF-INFO -sbatch] - #SBATCH --cpus-per-task=8
+[ECMWF-INFO -sbatch] - #SBATCH --mem=32G
+[ECMWF-INFO -sbatch] - #SBATCH --time=01:00:00
+[ECMWF-INFO -sbatch] - #SBATCH --output=logs/drydays_%j.out
+[ECMWF-INFO -sbatch] - #SBATCH --error=logs/drydays_%j.err
+[ECMWF-INFO -sbatch] - #SBATCH --qos=nf
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - --- POST-PROCESSED OPTIONS ---
+[ECMWF-INFO -sbatch] - ARG --positional=['run_calibrate_parallel.slurm']
+[ECMWF-INFO -sbatch] - ARG --account=ecme4047
+[ECMWF-INFO -sbatch] - ARG --cpus_per_task=8
+[ECMWF-INFO -sbatch] - ARG --error=logs/drydays_%j.err
+[ECMWF-INFO -sbatch] - ARG --job_name=drydays
+[ECMWF-INFO -sbatch] - ARG --ntasks=1
+[ECMWF-INFO -sbatch] - ARG --nodes=1
+[ECMWF-INFO -sbatch] - ARG --output=logs/drydays_%j.out
+[ECMWF-INFO -sbatch] - ARG --partition=ng
+[ECMWF-INFO -sbatch] - ARG --qos=nf
+[ECMWF-INFO -sbatch] - ARG --time=01:00:00
+[ECMWF-INFO -sbatch] - ARG --mem=32G
+[ECMWF-INFO -sbatch] - ------------------------------
+[ECMWF-INFO -sbatch] - jobtag: ecme4047-drydays-1x8-/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/logs/drydays__JOBID_.out
+[ECMWF-INFO -sbatch] - ['/usr/bin/sbatch', '--account=ecme4047', '--cpus-per-task=8', '--error=logs/drydays_%j.err', '--job-name=drydays', '--ntasks=1', '--nodes=1', '--output=logs/drydays_%j.out', '--partition=ng', '--qos=nf', '--time=01:00:00', '--mem=32G', '--licenses=h2resw01', '--export=EC_user_time_limit=01:00:00', '/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_calibrate_parallel.slurm']
+[ECMWF-INFO -sbatch] - sbatch executed on ac
+[ECMWF-INFO -sbatch] - Job queued on ac using method local
+[ECMWF-ERROR-sbatch] - ac: sbatch: error: invalid partition specified: ng
+sbatch: error: Batch job submission failed: Invalid partition name specified
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] -  This is the ECMWF jobfilter
+[ECMWF-INFO -sbatch] -  +++ Please report issues using the Support portal +++
+[ECMWF-INFO -sbatch] -  +++ https://support.ecmwf.int                     +++
+[ECMWF-INFO -sbatch] -  /usr/local/bin/ecsbatch: size: 54518, mtime: Thu Aug  6 13:29:49 2026
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] - Time at submit: Fri Sep 25 07:50:44 2026 (1790322644.0485494) on ac6-102.bullx:/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm
+[ECMWF-INFO -sbatch] - --- SLURM VARIABLES ---
+[ECMWF-INFO -sbatch] - EC_CLUSTER=ac
+[ECMWF-INFO -sbatch] - SLURM_EXPORT_ENV=ALL
+[ECMWF-INFO -sbatch] - SBATCH_EXPORT=NONE
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - jobscript: /etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_calibrate_parallel.slurm
+[ECMWF-INFO -sbatch] - --- SCRIPT OPTIONS ---
+[ECMWF-INFO -sbatch] - #SBATCH --job-name=drydays
+[ECMWF-INFO -sbatch] - #SBATCH --account=ecme4047
+[ECMWF-INFO -sbatch] - #SBATCH --partition=par
+[ECMWF-INFO -sbatch] - #SBATCH --nodes=1
+[ECMWF-INFO -sbatch] - #SBATCH --ntasks=1
+[ECMWF-INFO -sbatch] - #SBATCH --cpus-per-task=8
+[ECMWF-INFO -sbatch] - #SBATCH --mem=32G
+[ECMWF-INFO -sbatch] - #SBATCH --time=01:00:00
+[ECMWF-INFO -sbatch] - #SBATCH --output=logs/drydays_%j.out
+[ECMWF-INFO -sbatch] - #SBATCH --error=logs/drydays_%j.err
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - --- POST-PROCESSED OPTIONS ---
+[ECMWF-INFO -sbatch] - ARG --positional=['run_calibrate_parallel.slurm']
+[ECMWF-INFO -sbatch] - ARG --account=ecme4047
+[ECMWF-INFO -sbatch] - ARG --cpus_per_task=8
+[ECMWF-INFO -sbatch] - ARG --error=logs/drydays_%j.err
+[ECMWF-INFO -sbatch] - ARG --job_name=drydays
+[ECMWF-INFO -sbatch] - ARG --ntasks=1
+[ECMWF-INFO -sbatch] - ARG --nodes=1
+[ECMWF-INFO -sbatch] - ARG --output=logs/drydays_%j.out
+[ECMWF-INFO -sbatch] - ARG --partition=par
+[ECMWF-INFO -sbatch] - ARG --time=01:00:00
+[ECMWF-INFO -sbatch] - ARG --mem=32G
+[ECMWF-INFO -sbatch] - ------------------------------
+[ECMWF-INFO -sbatch] - No qos requested, assuming qos=np
+[ECMWF-INFO -sbatch] - jobtag: ecme4047-drydays-1x256-/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/logs/drydays__JOBID_.out
+[ECMWF-INFO -sbatch] - ['/usr/bin/sbatch', '--account=ecme4047', '--cpus-per-task=8', '--error=logs/drydays_%j.err', '--job-name=drydays', '--ntasks=1', '--nodes=1', '--output=logs/drydays_%j.out', '--partition=par', '--time=01:00:00', '--mem=32G', '--qos=np', '--licenses=h2resw01', '--export=EC_user_time_limit=01:00:00', '/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_calibrate_parallel.slurm']
+[ECMWF-INFO -sbatch] - sbatch executed on ac
+[ECMWF-INFO -sbatch] - Job queued on ac using method local
+[ECMWF-ERROR-sbatch] - ac: sbatch: error: Batch job submission failed: Invalid account or account/partition combination specified
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] -  This is the ECMWF jobfilter
+[ECMWF-INFO -sbatch] -  +++ Please report issues using the Support portal +++
+[ECMWF-INFO -sbatch] -  +++ https://support.ecmwf.int                     +++
+[ECMWF-INFO -sbatch] -  /usr/local/bin/ecsbatch: size: 54518, mtime: Thu Aug  6 13:29:49 2026
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] - Time at submit: Fri Sep 25 07:52:06 2026 (1790322726.9323082) on ac6-102.bullx:/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm
+[ECMWF-INFO -sbatch] - --- SLURM VARIABLES ---
+[ECMWF-INFO -sbatch] - EC_CLUSTER=ac
+[ECMWF-INFO -sbatch] - SLURM_EXPORT_ENV=ALL
+[ECMWF-INFO -sbatch] - SBATCH_EXPORT=NONE
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - jobscript: /etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_calibrate_parallel.slurm
+[ECMWF-INFO -sbatch] - --- SCRIPT OPTIONS ---
+[ECMWF-INFO -sbatch] - #SBATCH --job-name=drydays
+[ECMWF-INFO -sbatch] - #SBATCH --account=ecme4047
+[ECMWF-INFO -sbatch] - #SBATCH --qos=np
+[ECMWF-INFO -sbatch] - #SBATCH --partition=par
+[ECMWF-INFO -sbatch] - #SBATCH --nodes=1
+[ECMWF-INFO -sbatch] - #SBATCH --ntasks=1
+[ECMWF-INFO -sbatch] - #SBATCH --cpus-per-task=8
+[ECMWF-INFO -sbatch] - #SBATCH --mem=32G
+[ECMWF-INFO -sbatch] - #SBATCH --time=01:00:00
+[ECMWF-INFO -sbatch] - #SBATCH --output=logs/drydays_%j.out
+[ECMWF-INFO -sbatch] - #SBATCH --error=logs/drydays_%j.err
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - --- POST-PROCESSED OPTIONS ---
+[ECMWF-INFO -sbatch] - ARG --positional=['run_calibrate_parallel.slurm']
+[ECMWF-INFO -sbatch] - ARG --account=ecme4047
+[ECMWF-INFO -sbatch] - ARG --cpus_per_task=8
+[ECMWF-INFO -sbatch] - ARG --error=logs/drydays_%j.err
+[ECMWF-INFO -sbatch] - ARG --job_name=drydays
+[ECMWF-INFO -sbatch] - ARG --ntasks=1
+[ECMWF-INFO -sbatch] - ARG --nodes=1
+[ECMWF-INFO -sbatch] - ARG --output=logs/drydays_%j.out
+[ECMWF-INFO -sbatch] - ARG --partition=par
+[ECMWF-INFO -sbatch] - ARG --qos=np
+[ECMWF-INFO -sbatch] - ARG --time=01:00:00
+[ECMWF-INFO -sbatch] - ARG --mem=32G
+[ECMWF-INFO -sbatch] - ------------------------------
+[ECMWF-INFO -sbatch] - jobtag: ecme4047-drydays-1x256-/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/logs/drydays__JOBID_.out
+[ECMWF-INFO -sbatch] - ['/usr/bin/sbatch', '--account=ecme4047', '--cpus-per-task=8', '--error=logs/drydays_%j.err', '--job-name=drydays', '--ntasks=1', '--nodes=1', '--output=logs/drydays_%j.out', '--partition=par', '--qos=np', '--time=01:00:00', '--mem=32G', '--licenses=h2resw01', '--export=EC_user_time_limit=01:00:00', '/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_calibrate_parallel.slurm']
+[ECMWF-INFO -sbatch] - sbatch executed on ac
+[ECMWF-INFO -sbatch] - Job queued on ac using method local
+[ECMWF-ERROR-sbatch] - ac: sbatch: error: Batch job submission failed: Invalid account or account/partition combination specified
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] -  This is the ECMWF jobfilter
+[ECMWF-INFO -sbatch] -  +++ Please report issues using the Support portal +++
+[ECMWF-INFO -sbatch] -  +++ https://support.ecmwf.int                     +++
+[ECMWF-INFO -sbatch] -  /usr/local/bin/ecsbatch: size: 54518, mtime: Thu Aug  6 13:29:49 2026
+[ECMWF-INFO -sbatch] - -------------------------------------------------------------------------------------
+[ECMWF-INFO -sbatch] - Time at submit: Fri Sep 25 07:52:35 2026 (1790322755.4515467) on ac6-102.bullx:/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm
+[ECMWF-INFO -sbatch] - --- SLURM VARIABLES ---
+[ECMWF-INFO -sbatch] - EC_CLUSTER=ac
+[ECMWF-INFO -sbatch] - SLURM_EXPORT_ENV=ALL
+[ECMWF-INFO -sbatch] - SBATCH_EXPORT=NONE
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - jobscript: /etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_calibrate_parallel.slurm
+[ECMWF-INFO -sbatch] - --- SCRIPT OPTIONS ---
+[ECMWF-INFO -sbatch] - #SBATCH --job-name=drydays
+[ECMWF-INFO -sbatch] - #SBATCH --account=ecme4047
+[ECMWF-INFO -sbatch] - #SBATCH --qos=nf
+[ECMWF-INFO -sbatch] - #SBATCH --partition=gpil
+[ECMWF-INFO -sbatch] - #SBATCH --nodes=1
+[ECMWF-INFO -sbatch] - #SBATCH --ntasks=1
+[ECMWF-INFO -sbatch] - #SBATCH --cpus-per-task=8
+[ECMWF-INFO -sbatch] - #SBATCH --mem=32G
+[ECMWF-INFO -sbatch] - #SBATCH --time=01:00:00
+[ECMWF-INFO -sbatch] - #SBATCH --output=logs/drydays_%j.out
+[ECMWF-INFO -sbatch] - #SBATCH --error=logs/drydays_%j.err
+[ECMWF-INFO -sbatch] - -----------------------
+[ECMWF-INFO -sbatch] - --- POST-PROCESSED OPTIONS ---
+[ECMWF-INFO -sbatch] - ARG --positional=['run_calibrate_parallel.slurm']
+[ECMWF-INFO -sbatch] - ARG --account=ecme4047
+[ECMWF-INFO -sbatch] - ARG --cpus_per_task=8
+[ECMWF-INFO -sbatch] - ARG --error=logs/drydays_%j.err
+[ECMWF-INFO -sbatch] - ARG --job_name=drydays
+[ECMWF-INFO -sbatch] - ARG --ntasks=1
+[ECMWF-INFO -sbatch] - ARG --nodes=1
+[ECMWF-INFO -sbatch] - ARG --output=logs/drydays_%j.out
+[ECMWF-INFO -sbatch] - ARG --partition=gpil
+[ECMWF-INFO -sbatch] - ARG --qos=nf
+[ECMWF-INFO -sbatch] - ARG --time=01:00:00
+[ECMWF-INFO -sbatch] - ARG --mem=32G
+[ECMWF-INFO -sbatch] - ------------------------------
+[ECMWF-INFO -sbatch] - jobtag: ecme4047-drydays-1x8-/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/logs/drydays__JOBID_.out
+[ECMWF-INFO -sbatch] - ['/usr/bin/sbatch', '--account=ecme4047', '--cpus-per-task=8', '--error=logs/drydays_%j.err', '--job-name=drydays', '--ntasks=1', '--nodes=1', '--output=logs/drydays_%j.out', '--partition=gpil', '--qos=nf', '--time=01:00:00', '--mem=32G', '--licenses=h2resw01', '--export=EC_user_time_limit=01:00:00', '/etc/ecmwf/nfs/dh1_home_b/ecme4047/ALBATROSS_code/slurm/run_calibrate_parallel.slurm']
+[ECMWF-INFO -sbatch] - sbatch executed on ac
+[ECMWF-INFO -sbatch] - Job queued on ac using method local
+[ECMWF-ERROR-sbatch] - ac: sbatch: error: Batch job submission failed: Invalid account or account/partition combination specified
