@@ -49,11 +49,13 @@ YEARS        = range(1993, 2022 +1)
 INIT_MONTH   = 10
 N_MONTHS     = 3
 
+N_MEMBERS_KEEP = 25          # members common to all years; extra post-2016 members dropped
+
 FC_VAR       = "tp"
 OB_VAR       = "precipitation"
 
 FC_THRESH_M  = 0.001
-OB_THRESH_MM = 1
+OB_THRESH_MM = 0.1
 THR_LABEL = define_thr_label(FC_THRESH_M, OB_THRESH_MM)
 
 FC_TIME_DIM  = "valid_time"          # <- matches your fc files
@@ -82,6 +84,14 @@ def dry_fraction(da: xr.DataArray, thresh: float) -> xr.DataArray:
     valid = da.notnull()
     dry   = (da < thresh) & valid
     return (dry.sum(dim=reduce_dims) / valid.sum(dim=reduce_dims) * 100.0)
+
+
+def keep_members(da, n=N_MEMBERS_KEEP, dim="number"):
+    """Restrict the ensemble to the first n members, so years with extra members
+    (after the 2016 init) do not enter the statistics with a different weight."""
+    if dim in da.dims and da.sizes[dim] > n:
+        da = da.isel({dim: slice(0, n)})
+    return da
 
 
 # start a distributed cluster; threads_per_worker=1 avoids GIL contention on netCDF reads
@@ -117,6 +127,7 @@ def main():
                 ds = xr.open_dataset(f, chunks={FC_TIME_DIM: TIME_CHUNK})   # lazy, chunked
                 sub = ds[FC_VAR].sel({FC_TIME_DIM: ds[f"{FC_TIME_DIM}.month"] == month},
                                      drop=True)                            # empty months drop here
+                sub = keep_members(sub)                                    # remove extra members after 2016 init
                 parts.append(sub)                                     # NOT .load()
                 parts[-1].encoding.pop("source", None)                # let dask own the read
             if not parts:

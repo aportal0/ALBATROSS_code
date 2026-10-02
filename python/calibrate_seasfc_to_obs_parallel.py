@@ -223,6 +223,14 @@ def qdm_matrix(mod_train, obs_train, mod_target, nq=N_QUANTILES, qmin=QUANTILE_M
     if mod_target.size == 0:
         return mod_target.astype(np.float32)
 
+    # wet days only: drop the NaNs that `where(...)` inserted, they would
+    # otherwise propagate through np.quantile and null the whole transfer.
+    mt = mod_train[np.isfinite(mod_train)]
+    ot = obs_train[np.isfinite(obs_train)]
+    if mt.size < 2 or ot.size < 2:
+        # not enough wet days in this cell/window: leave the target untouched
+        return mod_target.astype(np.float32)
+
     q = np.linspace(qmin, 1.0 - qmin, nq)
 
     xm = np.maximum.accumulate(np.quantile(mod_train, q))
@@ -238,25 +246,52 @@ def qdm_matrix(mod_train, obs_train, mod_target, nq=N_QUANTILES, qmin=QUANTILE_M
 
 
 def qdm_da(mod_train, obs_train, mod_target, spatial=SPATIAL):
-    """Vectorised QDM over a dataarray, one (month = lead) window at a time."""
+    """
+    Vectorised QDM over a dataarray, one (month = lead) window at a time.
+
+    THREE DISTINCT CORE DIMS (_ms, _os, _t) are essential: with a shared name
+    (e.g. _s for both model and obs) xarray's deep_align would try to align the
+    model pool against the obs pool, and fail on the `year` coordinate, because
+    the model pool is indexed by INITIALIZATION year while the obs pool is
+    indexed by VALIDITY year -- they are never paired in QDM.
+
+    Alignment coordinates (`year`, `valid_time`, `time`) are dropped from the
+    stacked objects, but the multi-index levels that BUILD the core dim are kept,
+    so `unstack` can still rebuild the original dimensions.
+    """
     m_dims = [d for d in mod_train.dims if d not in spatial]
     o_dims = [d for d in obs_train.dims if d not in spatial]
     t_dims = [d for d in mod_target.dims if d not in spatial]
 
-    m_flat = mod_train.stack(_s=m_dims).transpose(..., "_s")
-    o_flat = obs_train.stack(_s=o_dims).transpose(..., "_s")
+    m_flat = mod_train.stack(_ms=m_dims).transpose(..., "_ms")
+    o_flat = obs_train.stack(_os=o_dims).transpose(..., "_os")
     t_flat = mod_target.stack(_t=t_dims).transpose(..., "_t")
+
+    # keep the target index to re-label the output before unstacking
+    t_index = t_flat.indexes["_t"]
+
+    def _deprivatized(flat, core_name):
+        """DataArray over the same dims as `flat`, with a positional index on the
+        core dim and NO coordinates on the spatial dims (so deep_align has
+        nothing to match between inputs)."""
+        dims = list(flat.dims)
+        coords = {core_name: np.arange(flat.sizes[core_name])}
+        return xr.DataArray(flat.data, dims=dims, coords=coords)
 
     corrected = xr.apply_ufunc(
         qdm_matrix,
-        m_flat, o_flat, t_flat,
-        input_core_dims=[["_s"], ["_s"], ["_t"]],
+        _deprivatized(m_flat, "_ms"),
+        _deprivatized(o_flat, "_os"),
+        _deprivatized(t_flat, "_t"),
+        input_core_dims=[["_ms"], ["_os"], ["_t"]],
         output_core_dims=[["_t"]],
         vectorize=True,
         dask="parallelized",
         output_dtypes=[np.float32],
         dask_gufunc_kwargs={"allow_rechunk": True},
     )
+
+    corrected = corrected.assign_coords(_t=t_index)
     corrected = corrected.unstack("_t")
     return corrected.transpose(*mod_target.dims)
 
@@ -298,10 +333,11 @@ def main():
                     continue
                 yr = _init_year(f)
                 train_counts[yr] = n
-                train_parts.append(
-                    keep_members(ds[FC_VAR].sel({FC_TIME_DIM: mask}, drop=True)) * FC_UNITS_TO_MM
-                    .expand_dims(year=[yr])
-                )
+                sub = (ds[FC_VAR].sel({FC_TIME_DIM: mask}, drop=True) * FC_UNITS_TO_MM).clip(min=0.0)
+                sub = keep_members(sub)
+                sub = sub.squeeze("forecast_reference_time", drop=True)   # <-- singleton, non è il tempo
+                sub = sub.expand_dims(year=[yr])     
+                train_parts.append(sub)
             if not train_parts:
                 print(f"  lead {k}: no training forecast -> skip", flush=True)
                 continue
@@ -334,10 +370,11 @@ def main():
                     continue
                 yr = _init_year(f)
                 verif_counts[yr] = n
-                verif_parts.append(
-                    keep_members(ds[FC_VAR].sel({FC_TIME_DIM: mask}, drop=True)) * FC_UNITS_TO_MM
-                    .expand_dims(year=[yr])
-                )
+                sub = (ds[FC_VAR].sel({FC_TIME_DIM: mask}, drop=True) * FC_UNITS_TO_MM).clip(min=0.0)
+                sub = keep_members(sub)
+                sub = sub.squeeze("forecast_reference_time", drop=True)   # <-- singleton, non è il tempo
+                sub = sub.expand_dims(year=[yr])     
+                verif_parts.append(sub)
             if not verif_parts:
                 print(f"  lead {k}: no verification forecast -> skip", flush=True)
                 continue
@@ -369,7 +406,7 @@ def main():
             # 5. write corrected daily fields ------------------------------
             out_path = OUT_DIR / (
                 f"tp_24h_ecmwf51_mon{month:02d}_init{INIT_MONTH:02d}_"
-                f"{VERIF_YEARS[0]}-{VERIF_YEARS[-1]}_{REGION}_res_ERA5-Land_qdm_MSWEP_thr{THR_LABEL}.nc"
+                f"{VERIF_YEARS[0]}-{VERIF_YEARS[-1]}_{REGION}_res_ERA5-Land_qdm_MSWEP_{THR_LABEL}.nc"
             )
             out_ds = corrected.to_dataset()
             out_ds.to_netcdf(out_path, encoding={

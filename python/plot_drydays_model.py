@@ -17,7 +17,7 @@ COUNTRY = "Madagascar"
 VARS = ["ecmwf51", "mswep", "bias"]
 THR_LABEL = "thr4"
 
-OUT_DIR = "/ec/res4/scratch/ecme4047/figures/model_calibration/"
+OUT_DIR = "/ec/res4/scratch/ecme4047/figures/model_calibration"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 # -----------------------------
