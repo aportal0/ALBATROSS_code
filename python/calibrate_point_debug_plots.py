@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 QDM bias adjustment of ECMWF SEAS5 daily precipitation (24h tp) vs MSWEP,
-FOR A SINGLE GRID POINT -- reduced version for debugging.
+FOR A SINGLE GRID POINT -- reduced version for debugging, with plots.
 
 Method:
   * training 1993-2022, verification 2023-2025;
@@ -14,14 +14,18 @@ Method:
         discrete mass at zero becomes part of a continuous distribution;
       - after the correction, values below the trace threshold are set back to
         zero, so days that were dry stay dry.
-    This is the standard treatment of the mixed discrete-continuous nature of
-    daily precipitation in bias correction.
 
-ONE THRESHOLD:
-  TRACE_MM = 0.05   censoring threshold: where the uniform noise is drawn and
-                    where the final re-zeroing happens. It is the only
-                    threshold in the script -- with censoring the CDF pool
-                    contains ALL days, so no wet-day cutoff is needed.
+THRESHOLDS:
+  TRACE_MM     = 0.05   censoring threshold: where the uniform noise is drawn and
+                        where the final re-zeroing happens. The only threshold
+                        that ACTS on the data.
+  THRESHOLD_MM = 1.0    DIAGNOSTIC ONLY -- never filters the CDF pool; used to
+                        report the wet-day fraction and recorded in the output.
+
+PLOTS (matplotlib, saved as PNG next to the NetCDF):
+  qdm_ratio_monMM_leadK.png   ratio obs/mod per quantile, with the 1:1 line
+  qdm_dist_monMM_leadK.png    distributions: model train, obs train,
+                              raw target, corrected target
 
 Run:
     srun --nodes=1 --ntasks=1 --cpus-per-task=1 --mem=8G --time=00:30:00 \
@@ -33,17 +37,23 @@ import os
 import numpy as np
 import xarray as xr
 
+import matplotlib
+matplotlib.use("Agg")          # no display on a compute node
+import matplotlib.pyplot as plt
+
 # ----------------------------------------------------------------------
 # configuration
 # ----------------------------------------------------------------------
 FC_DIR = Path("/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_10/tp/regridded_ERA5-Land")
 OB_DIR = Path("/ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land")
 OUT_DIR = Path("/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_10/tp/calibrated_MSWEP")
+FIG_DIR = Path("/ec/res4/scratch/ecme4047/figures/model_calibration/")
 
 REGION      = "Madagascar"
 TRAIN_YEARS = range(1993, 2022 + 1)
 VERIF_YEARS = range(2023, 2025 + 1)
 INIT_MONTH  = 10
+N_MONTHS    = 3
 
 # ---- THE POINT TO DEBUG: edit these two ----
 LAT_POINT = -18.9          # e.g. Antananarivo area
@@ -55,7 +65,7 @@ OB_VAR = "precipitation"
 FC_UNITS_TO_MM = 1000.0    # tp in metres (24 h accumulation) -> mm/day
 OB_UNITS_TO_MM = 1.0       # MSWEP already mm/day
 
-TRACE_MM     = 0.1         # censoring / trace threshold (mm/day)
+TRACE_MM     = 0.05        # censoring / trace threshold (mm/day)
 THRESHOLD_MM = 1.0         # DIAGNOSTIC ONLY -- never filters the CDF pool
 N_MEMBERS_KEEP = 25        # members common to all years (verify!)
 
@@ -72,7 +82,7 @@ RNG_SEED = 12345           # reproducible uniform noise for the censoring
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-LEAD_MONTHS = [((INIT_MONTH - 1 + k) % 12) + 1 for k in range(4)]
+LEAD_MONTHS = [((INIT_MONTH - 1 + k) % 12) + 1 for k in range(N_MONTHS)]
 TARGET = [(m, (INIT_MONTH - 1 + k) // 12) for k, m in enumerate(LEAD_MONTHS)]
 
 
@@ -102,14 +112,13 @@ def censor_dry(arr, trace=TRACE_MM, rng=None):
     """
     Replace EXACT ZEROS with nonzero uniform random values in (0, trace).
 
-    Why: daily precipitation has a discrete mass at zero on top of a continuous
+    Daily precipitation has a discrete mass at zero on top of a continuous
     distribution. Feeding the zeros as zeros makes the empirical CDF degenerate
     on the first quantiles and the QDM ratio ill-defined. Spreading them as a
     small uniform mass just below the trace threshold keeps them OUT of the wet
     tail while making the distribution continuous and invertible.
 
-    Values strictly between 0 and `trace` are left as they are: they are already
-    a trace amount.
+    Values strictly between 0 and `trace` are left as they are.
     """
     arr = np.asarray(arr, dtype=np.float64)
     out = arr.copy()
@@ -134,9 +143,9 @@ def qdm_point(mod_train, obs_train, mod_target,
     """
     Multiplicative QDM on three ALL-DAYS 1-D arrays (mm/day, already censored).
 
-    Note: the pool is NOT filtered to wet days any more. With censoring, every
-    day belongs to the distribution -- dry days sit just below the trace
-    threshold -- and that is what carries the dry-day frequency information.
+    The pool is NOT filtered to wet days: with censoring every day belongs to
+    the distribution -- dry days sit just below the trace threshold -- and that
+    is what carries the dry-day frequency information.
     """
     mod_train = np.asarray(mod_train, dtype=np.float64)
     obs_train = np.asarray(obs_train, dtype=np.float64)
@@ -157,8 +166,7 @@ def qdm_point(mod_train, obs_train, mod_target,
     xm = np.maximum.accumulate(np.quantile(mod_train, q))
     xo = np.maximum.accumulate(np.quantile(obs_train, q))
 
-    # guard: the lowest model quantile can be 0 if no censoring was applied to
-    # it; the ratio would then divide by zero.
+    # guard: a zero model quantile would divide by zero in the ratio
     xm = np.where(xm <= 0.0, np.finfo(np.float64).tiny, xm)
 
     p = np.interp(mod_target, xm, q, left=qmin, right=1.0 - qmin)
@@ -167,13 +175,132 @@ def qdm_point(mod_train, obs_train, mod_target,
 
     ratio = obs_at_p / mod_at_p
     out = mod_target * ratio
-    out = np.where(obs_at_p <= TRACE_MM, 0.0, out)   # quantile osservato dry -> zero
 
     print(f"    -> mod {mod_train.min():.3f}..{mod_train.max():.2f}  "
           f"obs {obs_train.min():.3f}..{obs_train.max():.2f}  "
           f"ratio {ratio.min():.3f}..{ratio.max():.3f}  "
           f"out {out.min():.3f}..{out.max():.2f}", flush=True)
     return out
+
+
+def make_plots(month, lead, m_train, o_train, raw, corrected):
+    """
+    Two demonstrative plots for the single-point debug, written as PNG
+    into OUT_DIR:
+
+      1. QDM ratio (obs/mod) per quantile, with the 1:1 reference line;
+      2. precipitation distributions: model train, obs train, raw target,
+         corrected target as frequency polygons on a shared axis.
+
+    Ratios and quantiles are computed from the ACTUAL arrays used in the
+    correction, so the figure shows the real transfer function.
+    """
+    q = np.linspace(QUANTILE_MIN, 1.0 - QUANTILE_MIN, N_QUANTILES)
+
+    xm = np.maximum.accumulate(np.quantile(m_train, q))
+    xo = np.maximum.accumulate(np.quantile(o_train, q))
+    xm_safe = np.where(xm <= 0.0, np.finfo(np.float64).tiny, xm)
+    ratio = xo / xm_safe
+
+    # ---- plot 1: ratio per quantile ------------------------------------
+    # The dry region of the OBSERVED distribution: quantiles where the observed
+    # value is still at/below the trace threshold. Beyond p_dry the observed
+    # distribution is genuinely wet, and the model's ratio there is meaningful.
+    dry_mask = xo <= TRACE_MM
+    p_dry = float(q[dry_mask][-1]) if dry_mask.any() else float(q[0])
+
+    fig, ax = plt.subplots(figsize=(9.5, 5.8), dpi=140)
+    ax.plot(q, ratio, color="#2b6cb0", lw=2, label="obs / mod")
+    ax.axhline(1.0, color="#718096", ls="--", lw=1.2, label="1:1")
+
+    # highlight the region where the observed quantile is below the trace
+    ax.axvspan(q[0], p_dry, color="#e2e8f0", alpha=0.7, zorder=0)
+    ax.axvline(p_dry, color="#a0aec0", lw=1.2, ls=":")
+    ax.annotate(
+        f"obs <= {TRACE_MM} mm\n(dry region)",
+        xy=(0.5 * (q[0] + p_dry), 0.92), xycoords=("data", "axes fraction"),
+        ha="center", va="top", fontsize=8, color="#4a5568",
+    )
+
+    ax.set_xlabel("Quantile (-)")
+    ax.set_ylabel("Ratio obs/mod (-)")
+    ax.set_title(f"QDM ratio obs/mod per quantile - lead {lead}, month {month:02d}")
+    ax.grid(alpha=0.25)
+    ax.legend(frameon=False, loc="lower right")
+
+    # second x axis: observed value at a set of sampled quantiles
+    n_ticks = 11
+    tick_pos = np.linspace(q[0], q[-1], n_ticks)
+    tick_lab = [f"{np.interp(t, q, xo):.2f}" for t in tick_pos]
+    secax = ax.secondary_xaxis("bottom")
+    secax.set_xticks(tick_pos)
+    secax.set_xticklabels(tick_lab, fontsize=7, rotation=45)
+    secax.set_xlabel("obs value at that quantile (mm/day)", fontsize=9)
+    secax.spines["bottom"].set_position(("outward", 34))
+
+    fig.tight_layout()
+    f1 = FIG_DIR / f"qdm_ratio_mon{month:02d}_init{INIT_MONTH:02d}_{VERIF_YEARS[0]}-{VERIF_YEARS[1]}_lat{LAT_POINT}_lon{LON_POINT}.png"
+    fig.savefig(f1, bbox_inches="tight")
+    plt.close(fig)
+    
+    # ---- plot 1: ratio per quantile ------------------------------------
+    fig, ax = plt.subplots(figsize=(9, 5.4), dpi=140)
+    ax.plot(q, ratio, color="#2b6cb0", lw=2, label="obs / mod")
+    ax.axhline(1.0, color="#718096", ls="--", lw=1.2, label="1:1")
+    ax.set_xlabel("Quantile (-)")
+    ax.set_ylabel("Ratio obs/mod (-)")
+    ax.set_title(f"QDM ratio obs/mod per quantile - lead {lead}, month {month:02d}")
+    ax.grid(alpha=0.25)
+    ax.legend(frameon=False)
+    fig.tight_layout()
+    f1 = FIG_DIR / f"qdm_ratio_mon{month:02d}_init{INIT_MONTH:02d}_{VERIF_YEARS[0]}-{VERIF_YEARS[1]}_lat{LAT_POINT}_lon{LON_POINT}.png"
+    fig.savefig(f1)
+    plt.close(fig)
+
+    # ---- plot 2: distributions -----------------------------------------
+    all_vals = np.concatenate([m_train, o_train, raw, corrected])
+    hi = float(np.percentile(all_vals, 99.5)) or 1.0
+    edges = np.linspace(0.0, hi, 41)
+    centers = 0.5 * (edges[:-1] + edges[1:])
+    DISTS = [
+        (m_train,   "model (train)",    "#2b6cb0"),
+        (o_train,   "obs (train)",      "#2f855a"),
+        (raw,       "raw target",       "#b7791f"),
+        (corrected, "corrected target", "#c53030"),
+    ]
+
+    def density(a):
+        h, _ = np.histogram(a, bins=edges)
+        return h / max(a.size, 1) * 100.0
+
+    fig, (ax_top, ax_bot) = plt.subplots(
+        2, 1, figsize=(9, 8), dpi=140, sharex=False, height_ratios=[1.3, 1]
+    )
+
+    # --- pannello superiore: tutto il range ---
+    for arr, lbl, col in DISTS:
+        ax_top.plot(centers, density(arr), color=col, lw=1.8, label=lbl)
+    ax_top.set_xlabel("Precipitation (mm/day)")
+    ax_top.set_ylabel("Frequency (%)")
+    ax_top.set_title(f"Distribution (full range) - lead {lead}, month {month:02d}")
+    ax_top.grid(alpha=0.25)
+    ax_top.legend(frameon=False)
+
+    # --- pannello inferiore: solo la coda > TAIL_FROM, riscalata ---
+    TAIL_FROM = 5.0
+    m = centers >= TAIL_FROM
+    for arr, lbl, col in DISTS:
+        ax_bot.plot(centers[m], density(arr)[m], color=col, lw=1.8)
+    ax_bot.set_xlabel("Precipitation (mm/day)")
+    ax_bot.set_ylabel("Frequency (%)")
+    ax_bot.set_title(f"Tail detail (> {TAIL_FROM} mm/day)")
+    ax_bot.grid(alpha=0.25)
+    fig.tight_layout()
+    f2 = FIG_DIR / f"qdm_distr_mon{month:02d}_init{INIT_MONTH:02d}_{VERIF_YEARS[0]}-{VERIF_YEARS[1]}_lat{LAT_POINT}_lon{LON_POINT}.png"
+    fig.savefig(f2)
+    plt.close(fig)
+
+    return [f1, f2]
 
 
 # ----------------------------------------------------------------------
@@ -273,7 +400,7 @@ def main():
 
         # ---- 8. summary ---------------------------------------------------
         print(f"  target raw : mean={raw.mean():.2f} max={raw.max():.2f} "
-              f"dry_days={100*(raw < THRESHOLD_MM).mean():.1f}%", flush=True)
+              f"dry_days={100*(raw == 0).mean():.1f}%", flush=True)
         print(f"  corrected  : mean={corrected.mean():.2f} "
               f"max={corrected.max():.2f} "
               f"dry_days={100*(corrected == 0).mean():.1f}%", flush=True)
@@ -300,9 +427,17 @@ def main():
                 "members_kept": str(N_MEMBERS_KEEP),
             },
         )
-        p = OUT_DIR / f"qdm_point_lead{k}_mon{month:02d}_lat{LAT_POINT}_lon{LON_POINT}.nc"
+        p = OUT_DIR / f"qdm_point_mon{month:02d}_init{INIT_MONTH:02d}_{VERIF_YEARS[0]}-{VERIF_YEARS[1]}_lat{LAT_POINT}_lon{LON_POINT}.nc"
         out_ds.to_netcdf(p)
         print(f"  wrote {p}", flush=True)
+
+        # ---- 10. demonstrative plots -------------------------------------
+        # plotting must not kill the run if matplotlib misbehaves
+        try:
+            for fp in make_plots(month, k, m_train, o_train, raw, corrected):
+                print(f"  plot -> {fp}", flush=True)
+        except Exception as exc:
+            print(f"  plot skipped: {exc}", flush=True)
 
     print("\ndone", flush=True)
 
