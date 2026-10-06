@@ -53,10 +53,10 @@ REGION      = "Madagascar"
 TRAIN_YEARS = range(1993, 2022 + 1)
 VERIF_YEARS = range(2023, 2025 + 1)
 INIT_MONTH  = 10
-N_MONTHS    = 3
+N_MONTHS = 3
 
 # ---- THE POINT TO DEBUG: edit these two ----
-LAT_POINT = -18.1          # e.g. Antananarivo area
+LAT_POINT = -18.1          # e.g. Tamatave area
 LON_POINT = 49.1
 
 FC_VAR = "tp"
@@ -65,7 +65,7 @@ OB_VAR = "precipitation"
 FC_UNITS_TO_MM = 1000.0    # tp in metres (24 h accumulation) -> mm/day
 OB_UNITS_TO_MM = 1.0       # MSWEP already mm/day
 
-TRACE_MM     = 0.1        # censoring / trace threshold (mm/day)
+TRACE_MM     = 0.05        # censoring / trace threshold (mm/day)
 THRESHOLD_MM = 1.0         # DIAGNOSTIC ONLY -- never filters the CDF pool
 N_MEMBERS_KEEP = 25        # members common to all years (verify!)
 
@@ -75,10 +75,17 @@ FC_SELECT_COORD = "valid_time"
 FC_CONCAT_DIM   = "forecast_reference_time"
 OB_TIME_DIM     = "time"
 
-N_QUANTILES  = 50
+N_QUANTILES  = 100
 QUANTILE_MIN = 0.01
 
 RNG_SEED = 12345           # reproducible uniform noise for the censoring
+
+SKIP_LEAD_DAYS = 10        # drop the first N days after init from the CALIBRATION
+                           # (forecast spin-up). Applied to the FORECAST only --
+                           # the observation has no lead. The lead counts from the
+                           # initialization date, so the filter removes the first
+                           # days of the whole window (October, with an Oct init),
+                           # not the first days of every month.
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -100,6 +107,32 @@ def fc_path(y):
 
 def ob_path(y, yoff, month):
     return OB_DIR / f"precip_daily_{y + yoff}{month:02d}_{REGION}_res_ERA5-Land.nc"
+
+
+def lead_keep_mask(da, month, init_year, month_boundary_day=1):
+    """
+    Boolean mask selecting the forecast steps to KEEP for a given calendar month.
+
+    Two conditions:
+      * the step's valid_time falls in `month`;
+      * its lead is at least SKIP_LEAD_DAYS days after the initialization date.
+
+    The lead is measured from the INITIALIZATION DATE, not from the start of the
+    month, so with SKIP_LEAD_DAYS = 10 only the first days of the window are
+    removed (October for an October init); November, December and January are
+    untouched. If SKIP_LEAD_DAYS is 0 the lead condition is satisfied by every
+    step and the mask reduces to the plain month selection.
+
+    `init_year` is the year of the initialization, from the file name; the
+    cutoff date is built from it and INIT_MONTH.
+    """
+    in_month = da[FC_SELECT_COORD].dt.month == month
+    if not SKIP_LEAD_DAYS:
+        return in_month
+    cutoff = (np.datetime64(f"{int(init_year):04d}-{INIT_MONTH:02d}-"
+                            f"{month_boundary_day:02d}")
+              + np.timedelta64(SKIP_LEAD_DAYS, "D"))
+    return in_month & (da[FC_SELECT_COORD] >= cutoff)
 
 
 def extract_point(ds, var, lat, lon, spatial_lat="lat", spatial_lon="lon"):
@@ -242,45 +275,30 @@ def make_plots(month, lead, m_train, o_train, raw, corrected):
     f1 = FIG_DIR / f"qdm_tr{TRACE_MM}mm_{N_QUANTILES}qtls_ratio_mon{month:02d}_init{INIT_MONTH:02d}_{VERIF_YEARS[0]}-{VERIF_YEARS[1]}_lat{LAT_POINT}_lon{LON_POINT}.png"
     fig.savefig(f1, bbox_inches="tight")
     plt.close(fig)
-    
+
     # ---- plot 2: distributions -----------------------------------------
     all_vals = np.concatenate([m_train, o_train, raw, corrected])
     hi = float(np.percentile(all_vals, 99.5)) or 1.0
     edges = np.linspace(0.0, hi, 41)
     centers = 0.5 * (edges[:-1] + edges[1:])
-    DISTS = [
-        (m_train,   "model (train)",    "#2b6cb0"),
-        (o_train,   "obs (train)",      "#2f855a"),
-        (raw,       "raw target",       "#b7791f"),
-        (corrected, "corrected target", "#c53030"),
-    ]
 
     def density(a):
         h, _ = np.histogram(a, bins=edges)
         return h / max(a.size, 1) * 100.0
 
-    fig, (ax_top, ax_bot) = plt.subplots(
-        2, 1, figsize=(9, 8), dpi=140, sharex=False, height_ratios=[1.3, 1]
-    )
-
-    # --- pannello superiore: tutto il range ---
-    for arr, lbl, col in DISTS:
-        ax_top.plot(centers, density(arr), color=col, lw=1.8, label=lbl)
-    ax_top.set_xlabel("Precipitation (mm/day)")
-    ax_top.set_ylabel("Frequency (%)")
-    ax_top.set_title(f"Distribution (full range) - lead {lead}, month {month:02d}")
-    ax_top.grid(alpha=0.25)
-    ax_top.legend(frameon=False)
-
-    # --- pannello inferiore: solo la coda > TAIL_FROM, riscalata ---
-    TAIL_FROM = 5.0
-    m = centers >= TAIL_FROM
-    for arr, lbl, col in DISTS:
-        ax_bot.plot(centers[m], density(arr)[m], color=col, lw=1.8)
-    ax_bot.set_xlabel("Precipitation (mm/day)")
-    ax_bot.set_ylabel("Frequency (%)")
-    ax_bot.set_title(f"Tail detail (> {TAIL_FROM} mm/day)")
-    ax_bot.grid(alpha=0.25)
+    fig, ax = plt.subplots(figsize=(9, 5.4), dpi=140)
+    for arr, lbl, col in [
+        (m_train,   "model (train)",    "#2b6cb0"),
+        (o_train,   "obs (train)",      "#2f855a"),
+        (raw,       "raw target",       "#b7791f"),
+        (corrected, "corrected target", "#c53030"),
+    ]:
+        ax.plot(centers, density(arr), color=col, lw=1.8, label=lbl)
+    ax.set_xlabel("Precipitation (mm/day)")
+    ax.set_ylabel("Frequency (%)")
+    ax.set_title(f"Daily precipitation distribution - lead {lead}, month {month:02d}")
+    ax.grid(alpha=0.25)
+    ax.legend(frameon=False)
     fig.tight_layout()
     f2 = FIG_DIR / f"qdm_tr{TRACE_MM}mm_{N_QUANTILES}qtls_distr_mon{month:02d}_init{INIT_MONTH:02d}_lat{LAT_POINT}_lon{LON_POINT}.png"
     fig.savefig(f2)
@@ -309,8 +327,8 @@ def main():
                 continue
             ds = xr.open_dataset(f)
             da = extract_point(ds, FC_VAR, LAT_POINT, LON_POINT)
-            da = da.sel({FC_TIME_DIM: da[FC_SELECT_COORD].dt.month == month},
-                        drop=True)
+            keep = lead_keep_mask(da, month, _init_year(f))
+            da = da.sel({FC_TIME_DIM: keep}, drop=True)
             if da.sizes.get(FC_TIME_DIM, 0) == 0:
                 ds.close()
                 continue
@@ -341,8 +359,8 @@ def main():
                 continue
             ds = xr.open_dataset(f)
             da = extract_point(ds, FC_VAR, LAT_POINT, LON_POINT)
-            da = da.sel({FC_TIME_DIM: da[FC_SELECT_COORD].dt.month == month},
-                        drop=True)
+            keep = lead_keep_mask(da, month, _init_year(f))
+            da = da.sel({FC_TIME_DIM: keep}, drop=True)
             if da.sizes.get(FC_TIME_DIM, 0) == 0:
                 ds.close()
                 continue
@@ -375,6 +393,20 @@ def main():
         print(f"  wet-day fraction (>{THRESHOLD_MM} mm): "
               f"model={100*(m_train > THRESHOLD_MM).mean():.1f}%  "
               f"obs={100*(o_train > THRESHOLD_MM).mean():.1f}%", flush=True)
+
+        # NOTE on the comparison for the first lead:
+        # the MODEL is calibrated and corrected on the days AFTER the first
+        # SKIP_LEAD_DAYS days of the window, while the MSWEP training pool is
+        # built over the WHOLE calendar month. For the first lead these two
+        # windows differ, so the printed obs statistics describe a slightly
+        # wider sample than the one the model was matched against. Only the
+        # first lead is affected; the later leads have no spin-up cut.
+        first_lead = (k == 0) and SKIP_LEAD_DAYS > 0
+        if first_lead:
+            print(f"  [note] lead 0: model calibrated on days > day "
+                  f"{SKIP_LEAD_DAYS} after init; MSWEP pool spans the FULL "
+                  f"month {month:02d} -- windows are not identical for this lead",
+                  flush=True)
 
         # ---- 6. QDM on ALL days ------------------------------------------
         raw = np.concatenate([a.ravel() for a in tgt])
@@ -411,6 +443,13 @@ def main():
                                      "before correction, re-zeroed after",
                 "train": f"{TRAIN_YEARS[0]}-{TRAIN_YEARS[-1]}",
                 "members_kept": str(N_MEMBERS_KEEP),
+                "skip_lead_days": str(SKIP_LEAD_DAYS),
+                "window_note": (
+                    f"model trained and corrected on days > {SKIP_LEAD_DAYS} "
+                    f"after init; MSWEP training pool over the FULL month {month:02d}"
+                    if first_lead else
+                    f"model and MSWEP span the FULL month {month:02d}"
+                ),
             },
         )
         p = OUT_DIR / f"qdm_tr{TRACE_MM}mm_{N_QUANTILES}qtls_point_mon{month:02d}_init{INIT_MONTH:02d}_{VERIF_YEARS[0]}-{VERIF_YEARS[1]}_lat{LAT_POINT}_lon{LON_POINT}.nc"
@@ -430,5 +469,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
