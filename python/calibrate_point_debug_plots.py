@@ -56,8 +56,8 @@ INIT_MONTH  = 10
 N_MONTHS    = 3
 
 # ---- THE POINT TO DEBUG: edit these two ----
-LAT_POINT = -18.9          # e.g. Antananarivo area
-LON_POINT = 47.5
+LAT_POINT = -18.1          # e.g. Antananarivo area
+LON_POINT = 49.1
 
 FC_VAR = "tp"
 OB_VAR = "precipitation"
@@ -65,7 +65,7 @@ OB_VAR = "precipitation"
 FC_UNITS_TO_MM = 1000.0    # tp in metres (24 h accumulation) -> mm/day
 OB_UNITS_TO_MM = 1.0       # MSWEP already mm/day
 
-TRACE_MM     = 0.05        # censoring / trace threshold (mm/day)
+TRACE_MM     = 0.1        # censoring / trace threshold (mm/day)
 THRESHOLD_MM = 1.0         # DIAGNOSTIC ONLY -- never filters the CDF pool
 N_MEMBERS_KEEP = 25        # members common to all years (verify!)
 
@@ -75,7 +75,7 @@ FC_SELECT_COORD = "valid_time"
 FC_CONCAT_DIM   = "forecast_reference_time"
 OB_TIME_DIM     = "time"
 
-N_QUANTILES  = 100
+N_QUANTILES  = 50
 QUANTILE_MIN = 0.01
 
 RNG_SEED = 12345           # reproducible uniform noise for the censoring
@@ -239,24 +239,10 @@ def make_plots(month, lead, m_train, o_train, raw, corrected):
     secax.spines["bottom"].set_position(("outward", 34))
 
     fig.tight_layout()
-    f1 = FIG_DIR / f"qdm_ratio_mon{month:02d}_init{INIT_MONTH:02d}_{VERIF_YEARS[0]}-{VERIF_YEARS[1]}_lat{LAT_POINT}_lon{LON_POINT}.png"
+    f1 = FIG_DIR / f"qdm_tr{TRACE_MM}mm_{N_QUANTILES}qtls_ratio_mon{month:02d}_init{INIT_MONTH:02d}_{VERIF_YEARS[0]}-{VERIF_YEARS[1]}_lat{LAT_POINT}_lon{LON_POINT}.png"
     fig.savefig(f1, bbox_inches="tight")
     plt.close(fig)
     
-    # ---- plot 1: ratio per quantile ------------------------------------
-    fig, ax = plt.subplots(figsize=(9, 5.4), dpi=140)
-    ax.plot(q, ratio, color="#2b6cb0", lw=2, label="obs / mod")
-    ax.axhline(1.0, color="#718096", ls="--", lw=1.2, label="1:1")
-    ax.set_xlabel("Quantile (-)")
-    ax.set_ylabel("Ratio obs/mod (-)")
-    ax.set_title(f"QDM ratio obs/mod per quantile - lead {lead}, month {month:02d}")
-    ax.grid(alpha=0.25)
-    ax.legend(frameon=False)
-    fig.tight_layout()
-    f1 = FIG_DIR / f"qdm_ratio_mon{month:02d}_init{INIT_MONTH:02d}_{VERIF_YEARS[0]}-{VERIF_YEARS[1]}_lat{LAT_POINT}_lon{LON_POINT}.png"
-    fig.savefig(f1)
-    plt.close(fig)
-
     # ---- plot 2: distributions -----------------------------------------
     all_vals = np.concatenate([m_train, o_train, raw, corrected])
     hi = float(np.percentile(all_vals, 99.5)) or 1.0
@@ -296,7 +282,7 @@ def make_plots(month, lead, m_train, o_train, raw, corrected):
     ax_bot.set_title(f"Tail detail (> {TAIL_FROM} mm/day)")
     ax_bot.grid(alpha=0.25)
     fig.tight_layout()
-    f2 = FIG_DIR / f"qdm_distr_mon{month:02d}_init{INIT_MONTH:02d}_{VERIF_YEARS[0]}-{VERIF_YEARS[1]}_lat{LAT_POINT}_lon{LON_POINT}.png"
+    f2 = FIG_DIR / f"qdm_tr{TRACE_MM}mm_{N_QUANTILES}qtls_distr_mon{month:02d}_init{INIT_MONTH:02d}_lat{LAT_POINT}_lon{LON_POINT}.png"
     fig.savefig(f2)
     plt.close(fig)
 
@@ -427,7 +413,7 @@ def main():
                 "members_kept": str(N_MEMBERS_KEEP),
             },
         )
-        p = OUT_DIR / f"qdm_point_mon{month:02d}_init{INIT_MONTH:02d}_{VERIF_YEARS[0]}-{VERIF_YEARS[1]}_lat{LAT_POINT}_lon{LON_POINT}.nc"
+        p = OUT_DIR / f"qdm_tr{TRACE_MM}mm_{N_QUANTILES}qtls_point_mon{month:02d}_init{INIT_MONTH:02d}_{VERIF_YEARS[0]}-{VERIF_YEARS[1]}_lat{LAT_POINT}_lon{LON_POINT}.nc"
         out_ds.to_netcdf(p)
         print(f"  wrote {p}", flush=True)
 
@@ -444,4 +430,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
