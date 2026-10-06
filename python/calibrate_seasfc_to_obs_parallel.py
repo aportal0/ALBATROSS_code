@@ -1,59 +1,42 @@
 #!/usr/bin/env python3
 """
-QDM bias adjustment of ECMWF SEAS5 daily precipitation (24h tp) against MSWEP,
-over Madagascar, for seasonal forecasts.
+QDM bias adjustment of ECMWF SEAS5 daily precipitation (24h tp) vs MSWEP,
+ON THE FULL GRID, POINT BY POINT, with dask parallelism.
 
-Continuation of drydays_parallel.py: same input paths, same regridded
-ERA5-Land grid, same threshold convention.
+This is the operational counterpart of qdm_point_debug.py: the SAME correction
+logic, applied to every grid cell independently. Each cell is corrected on its
+own 1-D time series -- no apply_ufunc over coordinates, so there is nothing to
+align and nothing to unstack.
 
-UNITS -- THIS IS THE PART THAT BITES IF IGNORED:
-    model  tp : metres, accumulated over 24 h           (ncdump: tp:units = "m")
-    MSWEP     : millimetres per day                     (precipitation:units = "mm/day")
-    24 h accumulation in metres -> mm/day by a single factor of 1000.
-    Everything downstream is done in MM/DAY: the wet-day threshold is 1 mm,
-    the QDM ratio obs/mod is unit-consistent, and the output is written in
-    mm/day. `assert_units()` below checks the declared units and applies or
-    verifies the conversion, so a unit mismatch fails loudly instead of
-    silently producing a transfer function off by 1000x.
+MEMORY MODEL -- why the spatial loop is blocked
+    The per-cell work is scheduled with dask.delayed, but the three censored
+    sample sets are materialised as numpy arrays on the client. Loading the whole
+    grid at once does not fit in the worker budget (it killed the workers with
+    OOM), so the grid is processed in LAT_BLOCK row strips: each strip is loaded,
+    its cells corrected, the strip result kept, and the strip arrays freed. The
+    strips are concatenated along the latitude axis at the end.
+    If a worker still dies, lower LAT_BLOCK first.
 
-DIMENSION LAYOUT (confirmed from ncdump -h):
-    tp(forecast_period, number, forecast_reference_time, lat, lon)
-      forecast_period         = 123   (STEP, 24 h cadence -> the real time axis)
-      number                  = 25    (ensemble member)
-      forecast_reference_time = 1     (one per file -> becomes the year axis)
-      lat = 159, lon = 90
-      valid_time(forecast_period)     coordinate on forecast_period, used only
-                                      to select days of a given calendar month.
+Method:
+  * training 1993-2022, verification 2023-2025;
+  * one transfer function per (lead = target month), trained on that month only;
+  * multiplicative QDM: delta from the training climatologies, re-applied to the
+    target value, so the anomaly survives;
+  * dry days as CENSORED values below a trace threshold: zeros in both model and
+    observations become nonzero uniform values below the trace BEFORE the
+    correction; values below the trace are set back to zero AFTER;
+  * the first SKIP_LEAD_DAYS days after the initialization are excluded from the
+    calibration (forecast spin-up). The observation has no lead, so its pool
+    spans the full calendar month -- for the first lead the two windows differ
+    and this is recorded in the output attributes.
 
-FORECAST WINDOW:
-    With init_month = October and 123 daily steps, the window is 1 Oct -> 31 Jan:
-        lead 0 : October   lead 1 : November   lead 2 : December   lead 3 : January
-    Derived generically from INIT_MONTH: an init in January gives
-    lead 0 = January, lead 1 = February, ... with the year offsets recomputed.
+Output: one NetCDF per (lead, month) with the corrected daily forecast fields
+(tp_qdm), on the same grid and dims as the input, verification years only.
+No plots.
 
-FEBRUARY / VARIABLE-LENGTH MONTHS:
-    The window guard does NOT require an identical day count across years where
-    the month length legitimately varies. February has 28 days in common years
-    and 29 in leap years: BOTH are accepted and pooled together. The guard still
-    catches the real failures: an implausible day count for a month (a window
-    that grew past its end), and a fixed-length month whose count differs
-    between years (lead window not identical across years).
-
-DESIGN (S2S-correct):
-  * Training period 1993-2022, verification period 2023-2025.
-  * Each (target month = lead) treated SEPARATELY: one transfer function per
-    lead window, trained only on the corresponding days of the training years.
-  * CDFs pooled over all training YEARS and all 25 MEMBERS of that lead window
-    -- never over a single initialization's ensemble.
-  * The SAME transfer function is applied to every member of the target
-    initialization, preserving the anomaly and the ensemble spread.
-  * Wet days only, identical threshold model/obs. Dry days stay dry.
-    Observed dry-day frequency is never imposed.
-
-Run with, e.g.:
-
+Run:
     srun --nodes=1 --ntasks=1 --cpus-per-task=8 --mem=32G --time=04:00:00 \
-         python qdm_daily_seas5.py
+         python calibrate_grid_delayed.py
 """
 
 from pathlib import Path
@@ -61,6 +44,7 @@ import os
 import numpy as np
 import xarray as xr
 from dask.distributed import Client, LocalCluster
+from dask import delayed, compute
 import tempfile
 
 # ----------------------------------------------------------------------
@@ -75,79 +59,52 @@ FC_DIR = Path("/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_10/tp/reg
 OB_DIR = Path("/ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/regridded_ERA5-Land")
 OUT_DIR = Path("/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_10/tp/calibrated_MSWEP")
 
-REGION       = "Madagascar"
-TRAIN_YEARS  = range(1993, 2022 + 1)          # 1993-2022 inclusive
-VERIF_YEARS  = range(2023, 2025 + 1)          # 2023-2025 inclusive
+REGION      = "Madagascar"
+TRAIN_YEARS = range(1993, 2022 + 1)
+VERIF_YEARS = range(2023, 2025 + 1)
+INIT_MONTH  = 10
+N_MONTHS    = 3
 
-# Ensemble size changes at the 2016 initialization: extra members after 2016
-# are dropped so the pool is homogeneous across the whole training period.
-N_MEMBERS_KEEP = 25          # members common to all years (adjusted if needed)
+FC_VAR = "tp"
+OB_VAR = "precipitation"
 
-# Initialization month, and number of lead months to calibrate from lead 0.
-INIT_MONTH   = 10
-N_MONTHS     = 4                              # lead 0 .. lead 3
+FC_UNITS_TO_MM = 1000.0    # tp in metres (24 h accumulation) -> mm/day
+OB_UNITS_TO_MM = 1.0       # MSWEP already mm/day
 
-FC_VAR       = "tp"
-OB_VAR       = "precipitation"
+TRACE_MM     = 0.1         # censoring / trace threshold (mm/day)
+THRESHOLD_MM = 1.0         # DIAGNOSTIC ONLY -- never filters the CDF pool
+N_MEMBERS_KEEP = 25        # members common to all years (verify!)
+SKIP_LEAD_DAYS = 10        # drop the first N days after init from CALIBRATION
 
-# ---- units ----
-# Model file declares metres; MSWEP declares mm/day. Conversion to mm is applied
-# on read, and the whole pipeline works in mm/day.
-FC_UNITS_TO_MM = 1000.0                       # m -> mm (24 h accumulation)
-OB_UNITS_TO_MM = 1.0                          # already mm/day
-
-# Single physical wet-day threshold, in MM/DAY, applied identically to both.
-THRESHOLD_MM = 1.0
-THR_LABEL    = "thr_1mm"
-
-# ---- dimension names, confirmed from ncdump ----
 MEMBER_DIM      = "number"
-FC_TIME_DIM     = "forecast_period"           # lead step, 24 h cadence
-FC_SELECT_COORD = "valid_time"                # coordinate on forecast_period
-FC_CONCAT_DIM   = "forecast_reference_time"   # one per file -> year axis
+FC_TIME_DIM     = "forecast_period"
+FC_SELECT_COORD = "valid_time"
+FC_CONCAT_DIM   = "forecast_reference_time"
 OB_TIME_DIM     = "time"
 
-SPATIAL = ("lat", "latitude", "lon", "longitude")
+SPATIAL_LAT = "lat"
+SPATIAL_LON = "lon"
 
-# QDM knobs
 N_QUANTILES  = 100
 QUANTILE_MIN = 0.01
+RNG_SEED     = 12345
 
-# parallelism settings
-N_WORKERS    = int(os.environ.get("SLURM_CPUS_PER_TASK", 8))
-TIME_CHUNK   = 40
-WORKER_MEM   = "3GB"
+# ---- parallelism / memory ----
+N_WORKERS  = int(os.environ.get("SLURM_CPUS_PER_TASK", 8))
+WORKER_MEM = "3GB"
+TIME_CHUNK = 40
+LAT_BLOCK  = 20            # latitude rows loaded per strip (lower if workers die)
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Calendar months covered, in lead order, from the initialization month.
 LEAD_MONTHS = [((INIT_MONTH - 1 + k) % 12) + 1 for k in range(N_MONTHS)]
-
-# (calendar month, year_offset) per lead. Offset = calendar-year boundaries crossed.
 TARGET = [(m, (INIT_MONTH - 1 + k) // 12) for k, m in enumerate(LEAD_MONTHS)]
 
-# Base lengths; the initialization month loses one day (its first day is the
-# init instant at 00 UTC and is not part of the window).
-_BASE_LENGTHS = {
-    1: {31}, 2: {28, 29}, 3: {31}, 4: {30}, 5: {31}, 6: {30},
-    7: {31}, 8: {31}, 9: {30}, 10: {31}, 11: {30}, 12: {31},
-}
-
-def _month_lengths(init_month):
-    """Plausible day counts per calendar month, with one day removed from the
-    initialization month (the init instant at 00 UTC is not a valid 24 h day)."""
-    out = {m: set(v) for m, v in _BASE_LENGTHS.items()}
-    out[init_month] = {n - 1 for n in out[init_month]}
-    return out
-
-MONTH_LENGTHS = _month_lengths(INIT_MONTH)
-VARIABLE_LENGTH_MONTHS = {2}
 
 # ----------------------------------------------------------------------
-# helpers
+# helpers (identical logic to the single-point script)
 # ----------------------------------------------------------------------
 def _init_year(fname):
-    """Year of the initialization, parsed from the file name (initYYYYMM)."""
     stem = fname.name if isinstance(fname, Path) else str(fname)
     return int(stem.split("init")[1][:4])
 
@@ -160,140 +117,102 @@ def ob_path(y, yoff, month):
     return OB_DIR / f"precip_daily_{y + yoff}{month:02d}_{REGION}_res_ERA5-Land.nc"
 
 
-def month_window(da, month, select_coord=FC_SELECT_COORD):
-    """Boolean mask of steps of `da` whose valid_time falls in `month`."""
-    return (da[select_coord].dt.month == month).values
+def lead_keep_mask(da, month, init_year, month_day=1):
+    """Steps to keep: valid_time in `month` AND lead >= SKIP_LEAD_DAYS days
+    after the initialization date (forecast spin-up excluded)."""
+    in_month = da[FC_SELECT_COORD].dt.month == month
+    if not SKIP_LEAD_DAYS:
+        return in_month
+    cutoff = (np.datetime64(f"{int(init_year):04d}-{INIT_MONTH:02d}-{month_day:02d}")
+              + np.timedelta64(SKIP_LEAD_DAYS, "D"))
+    return in_month & (da[FC_SELECT_COORD] >= cutoff)
 
 
-def keep_members(da, n=N_MEMBERS_KEEP, dim=MEMBER_DIM):
-    """Restrict the ensemble to the first n members, so years with extra
-    members (after the 2016 init) do not pool a different ensemble size."""
-    if dim in da.dims and da.sizes[dim] > n:
-        da = da.isel({dim: slice(0, n)})
-    return da
+def censor_dry(arr, trace=TRACE_MM, rng=None):
+    """Exact zeros -> nonzero uniform values in (0, trace)."""
+    arr = np.asarray(arr, dtype=np.float64)
+    out = arr.copy()
+    zeros = out == 0.0
+    n = int(zeros.sum())
+    if n:
+        out[zeros] = rng.uniform(0.0, trace, size=n)
+    return out, n
 
 
-def check_window_lengths(day_counts, month):
-    """
-    Guard on the forecast-window length for a given month.
-
-    * every count must be a plausible length for that month;
-    * February accepts 28 and 29 (calendar variation, pooled together);
-    * other months must agree across years (otherwise the lead window differs).
-    """
-    if not day_counts:
-        return
-
-    allowed = MONTH_LENGTHS[month]
-
-    bad = {y: n for y, n in day_counts.items() if n not in allowed}
-    if bad:
-        detail = ", ".join(f"{y}:{n}" for y, n in sorted(bad.items()))
-        raise ValueError(
-            f"[window guard] month {month:02d}: implausible day count(s) {detail}; "
-            f"expected one of {sorted(allowed)}. The forecast window likely grew "
-            f"past its intended end -- check forecast_period / valid_time."
-        )
-
-    if month in VARIABLE_LENGTH_MONTHS:
-        counts = sorted(set(day_counts.values()))
-        print(f"  [window guard] month {month:02d}: lengths {counts} accepted "
-              f"(calendar variation; leap years pooled in)", flush=True)
-        return
-
-    counts = set(day_counts.values())
-    if len(counts) > 1:
-        detail = ", ".join(f"{y}:{n}" for y, n in sorted(day_counts.items()))
-        raise ValueError(
-            f"[window guard] month {month:02d}: inconsistent day count across years "
-            f"-> CDF would pool different lead windows. Details: {detail}"
-        )
+def require_zero(arr, trace=TRACE_MM):
+    """Below the trace threshold -> exact zero (dry days stay dry)."""
+    arr = np.asarray(arr, dtype=np.float64)
+    out = arr.copy()
+    out[out < trace] = 0.0
+    return out
 
 
-def qdm_matrix(mod_train, obs_train, mod_target, nq=N_QUANTILES, qmin=QUANTILE_MIN):
-    """
-    Quantile Delta Mapping (Cannon, Sobie & Murdock 2015), multiplicative form.
-    All inputs in mm/day, so the obs/mod ratio is unit-consistent.
-
-    The delta is taken from the TRAINING climatologies and re-applied to the
-    target value, so the anomaly relative to the model climatology is preserved
-    rather than flattened onto the observed climatology.
-    """
+def qdm_point(mod_train, obs_train, mod_target,
+              nq=N_QUANTILES, qmin=QUANTILE_MIN):
+    """Multiplicative QDM on three 1-D all-days arrays (mm/day, already
+    censored). Returns the corrected target, same length."""
     mod_target = np.asarray(mod_target, dtype=np.float64)
-    if mod_target.size == 0:
-        return mod_target.astype(np.float32)
+    mod_train = np.asarray(mod_train, dtype=np.float64)
+    obs_train = np.asarray(obs_train, dtype=np.float64)
 
-    # wet days only: drop the NaNs that `where(...)` inserted, they would
-    # otherwise propagate through np.quantile and null the whole transfer.
-    mt = mod_train[np.isfinite(mod_train)]
-    ot = obs_train[np.isfinite(obs_train)]
-    if mt.size < 2 or ot.size < 2:
-        # not enough wet days in this cell/window: leave the target untouched
+    mod_train = mod_train[np.isfinite(mod_train)]
+    obs_train = obs_train[np.isfinite(obs_train)]
+
+    if mod_train.size < 2 or obs_train.size < 2 or mod_target.size == 0:
         return mod_target.astype(np.float32)
 
     q = np.linspace(qmin, 1.0 - qmin, nq)
-
     xm = np.maximum.accumulate(np.quantile(mod_train, q))
     xo = np.maximum.accumulate(np.quantile(obs_train, q))
+    xm = np.where(xm <= 0.0, np.finfo(np.float64).tiny, xm)
 
     p = np.interp(mod_target, xm, q, left=qmin, right=1.0 - qmin)
-
-    obs_at_p = np.interp(p, q, xo)
-    mod_at_p = np.interp(p, q, xm)
-
-    ratio = obs_at_p / mod_at_p
+    ratio = np.interp(p, q, xo) / np.interp(p, q, xm)
     return (mod_target * ratio).astype(np.float32)
 
 
-def qdm_da(mod_train, obs_train, mod_target, spatial=SPATIAL):
+@delayed
+def correct_cell(m_pool, o_pool, t_cens, iy, ix):
     """
-    Vectorised QDM over a dataarray, one (month = lead) window at a time.
+    Correct ONE grid cell -- the whole QDM for that point.
 
-    THREE DISTINCT CORE DIMS (_ms, _os, _t) are essential: with a shared name
-    (e.g. _s for both model and obs) xarray's deep_align would try to align the
-    model pool against the obs pool, and fail on the `year` coordinate, because
-    the model pool is indexed by INITIALIZATION year while the obs pool is
-    indexed by VALIDITY year -- they are never paired in QDM.
+    m_pool : (ny_m, ntime_m, nmem) model pool, censored, ALL years/members
+    o_pool : (ny_o, ntime_o)       obs pool, censored, ALL years
+    t_cens : (ny, ntime, nmem)     censored target for this cell
+    iy, ix : grid indices (passed through for provenance)
 
-    Alignment coordinates (`year`, `valid_time`, `time`) are dropped from the
-    stacked objects, but the multi-index levels that BUILD the core dim are kept,
-    so `unstack` can still rebuild the original dimensions.
+    The transfer function is estimated from the POOLED model and obs samples
+    (all years and members flattened), then applied per year and per member of
+    the target. Dry days are re-zeroed below the trace threshold at the end.
+
+    Returns a float32 array shaped like t_cens.
     """
-    m_dims = [d for d in mod_train.dims if d not in spatial]
-    o_dims = [d for d in obs_train.dims if d not in spatial]
-    t_dims = [d for d in mod_target.dims if d not in spatial]
+    m_flat = np.asarray(m_pool, dtype=np.float64).ravel()
+    o_flat = np.asarray(o_pool, dtype=np.float64).ravel()
+    m_flat = m_flat[np.isfinite(m_flat)]
+    o_flat = o_flat[np.isfinite(o_flat)]
 
-    m_flat = mod_train.stack(_ms=m_dims).transpose(..., "_ms")
-    o_flat = obs_train.stack(_os=o_dims).transpose(..., "_os")
-    t_flat = mod_target.stack(_t=t_dims).transpose(..., "_t")
+    t_cens = np.asarray(t_cens, dtype=np.float64)
 
-    # keep the target index to re-label the output before unstacking
-    t_index = t_flat.indexes["_t"]
+    # not enough sample in this cell: return the target re-zeroed only, so the
+    # dry-day convention is applied uniformly
+    if m_flat.size < 2 or o_flat.size < 2:
+        return require_zero(t_cens, TRACE_MM).astype(np.float32)
 
-    def _deprivatized(flat, core_name):
-        """DataArray over the same dims as `flat`, with a positional index on the
-        core dim and NO coordinates on the spatial dims (so deep_align has
-        nothing to match between inputs)."""
-        dims = list(flat.dims)
-        coords = {core_name: np.arange(flat.sizes[core_name])}
-        return xr.DataArray(flat.data, dims=dims, coords=coords)
+    q = np.linspace(QUANTILE_MIN, 1.0 - QUANTILE_MIN, N_QUANTILES)
+    xm = np.maximum.accumulate(np.quantile(m_flat, q))
+    xo = np.maximum.accumulate(np.quantile(o_flat, q))
+    xm = np.where(xm <= 0.0, np.finfo(np.float64).tiny, xm)
 
-    corrected = xr.apply_ufunc(
-        qdm_matrix,
-        _deprivatized(m_flat, "_ms"),
-        _deprivatized(o_flat, "_os"),
-        _deprivatized(t_flat, "_t"),
-        input_core_dims=[["_ms"], ["_os"], ["_t"]],
-        output_core_dims=[["_t"]],
-        vectorize=True,
-        dask="parallelized",
-        output_dtypes=[np.float32],
-        dask_gufunc_kwargs={"allow_rechunk": True},
-    )
+    out = np.empty_like(t_cens, dtype=np.float64)
+    for yi in range(t_cens.shape[0]):
+        tgt = t_cens[yi]                       # (ntime, nmem)
+        flat = tgt.ravel()
+        p = np.interp(flat, xm, q, left=QUANTILE_MIN, right=1.0 - QUANTILE_MIN)
+        ratio = np.interp(p, q, xo) / np.interp(p, q, xm)
+        out[yi] = (flat * ratio).reshape(tgt.shape)
 
-    corrected = corrected.assign_coords(_t=t_index)
-    corrected = corrected.unstack("_t")
-    return corrected.transpose(*mod_target.dims)
+    return require_zero(out, TRACE_MM).astype(np.float32)
 
 
 # ----------------------------------------------------------------------
@@ -315,98 +234,211 @@ def main():
         verif_fc_files = [fc_path(y) for y in VERIF_YEARS if fc_path(y).exists()]
         print(f"forecast files: {len(train_fc_files)} train, "
               f"{len(verif_fc_files)} verif", flush=True)
-        print(f"lead months (from init {INIT_MONTH:02d}): {LEAD_MONTHS}", flush=True)
 
-        # ---- per lead (= per target month), train then apply -----------
         for k, (month, yoff) in enumerate(TARGET):
-            print(f"\n=== lead {k} -- target month {month:02d}  "
+            print(f"\n=== lead {k} -- target month {month:02d} "
                   f"(year offset {yoff}) ===", flush=True)
+            first_lead = (k == 0) and SKIP_LEAD_DAYS > 0
 
-            # 1. training forecast pool: all years x all 25 members --------
-            train_parts, train_counts = [], {}
-            for f in train_fc_files:
+            # ---- 1. model pool: all years, all members, month, spin-up cut --
+            m_parts = []
+            for y in TRAIN_YEARS:
+                f = fc_path(y)
+                if not f.exists():
+                    continue
                 ds = xr.open_dataset(f, chunks={FC_TIME_DIM: TIME_CHUNK})
-                mask = month_window(ds[FC_VAR], month)
-                n = int(mask.sum())
-                if n == 0:
+                da = ds[FC_VAR]
+                mask = lead_keep_mask(da, month, _init_year(f))
+                sub = da.sel({FC_TIME_DIM: mask}, drop=True)
+                if sub.sizes.get(FC_TIME_DIM, 0) == 0:
                     ds.close()
                     continue
-                yr = _init_year(f)
-                train_counts[yr] = n
-                sub = (ds[FC_VAR].sel({FC_TIME_DIM: mask}, drop=True) * FC_UNITS_TO_MM).clip(min=0.0)
-                sub = keep_members(sub)
-                sub = sub.squeeze("forecast_reference_time", drop=True)   # <-- singleton, non è il tempo
-                sub = sub.expand_dims(year=[yr])     
-                train_parts.append(sub)
-            if not train_parts:
-                print(f"  lead {k}: no training forecast -> skip", flush=True)
+                sub = (sub.isel({MEMBER_DIM: slice(0, N_MEMBERS_KEEP)})
+                          .squeeze(FC_CONCAT_DIM, drop=True) * FC_UNITS_TO_MM)
+                m_parts.append(sub.transpose(FC_TIME_DIM, MEMBER_DIM,
+                                             SPATIAL_LAT, SPATIAL_LON))
+                ds.close()
+            if not m_parts:
+                print("  no model training data -> skip", flush=True)
                 continue
-            check_window_lengths(train_counts, month)
-            fc_train = xr.concat(train_parts, dim="year", join="override")
-            print(f"  fc_train  {dict(fc_train.sizes)}", flush=True)
+            m_da = xr.concat(m_parts, dim="year", join="override")
+            m_da = m_da.clip(min=0.0)
+            print(f"  model pool {dict(m_da.sizes)}", flush=True)
 
-            # 2. training MSWEP pool (mm/day, same calendar month) ---------
-            ob_parts = []
+            # ---- 2. obs pool: same month, all years -------------------------
+            o_parts = []
             for y in TRAIN_YEARS:
                 f = ob_path(y, yoff, month)
                 if not f.exists():
                     continue
                 ds = xr.open_dataset(f, chunks={OB_TIME_DIM: TIME_CHUNK})
-                ob_parts.append((ds[OB_VAR] * OB_UNITS_TO_MM).expand_dims(year=[y]))
-            if not ob_parts:
-                print(f"  lead {k}: no training MSWEP -> skip", flush=True)
+                ob = ds[OB_VAR]
+                extra = [d for d in ob.dims if d not in (SPATIAL_LAT, SPATIAL_LON)
+                         and d != OB_TIME_DIM]
+                if extra:
+                    ob = ob.isel({d: 0 for d in extra}, drop=True)
+                o_parts.append((ob * OB_UNITS_TO_MM).transpose(
+                    OB_TIME_DIM, SPATIAL_LAT, SPATIAL_LON))
+                ds.close()
+            if not o_parts:
+                print("  no obs training data -> skip", flush=True)
                 continue
-            ob_train = xr.concat(ob_parts, dim="year", join="override")
-            print(f"  ob_train  {dict(ob_train.sizes)}", flush=True)
+            o_da = xr.concat(o_parts, dim="year", join="override")
+            o_da = o_da.clip(min=0.0)
+            print(f"  obs pool   {dict(o_da.sizes)}", flush=True)
 
-            # 3. verification target, per member, per year -----------------
-            verif_parts, verif_counts = [], {}
-            for f in verif_fc_files:
+            # ---- 3. target: verification years ------------------------------
+            t_parts = []
+            for y in VERIF_YEARS:
+                f = fc_path(y)
+                if not f.exists():
+                    continue
                 ds = xr.open_dataset(f, chunks={FC_TIME_DIM: TIME_CHUNK})
-                mask = month_window(ds[FC_VAR], month)
-                n = int(mask.sum())
-                if n == 0:
+                da = ds[FC_VAR]
+                mask = lead_keep_mask(da, month, _init_year(f))
+                sub = da.sel({FC_TIME_DIM: mask}, drop=True)
+                if sub.sizes.get(FC_TIME_DIM, 0) == 0:
                     ds.close()
                     continue
-                yr = _init_year(f)
-                verif_counts[yr] = n
-                sub = (ds[FC_VAR].sel({FC_TIME_DIM: mask}, drop=True) * FC_UNITS_TO_MM).clip(min=0.0)
-                sub = keep_members(sub)
-                sub = sub.squeeze("forecast_reference_time", drop=True)   # <-- singleton, non è il tempo
-                sub = sub.expand_dims(year=[yr])     
-                verif_parts.append(sub)
-            if not verif_parts:
-                print(f"  lead {k}: no verification forecast -> skip", flush=True)
+                sub = (sub.isel({MEMBER_DIM: slice(0, N_MEMBERS_KEEP)})
+                          .squeeze(FC_CONCAT_DIM, drop=True) * FC_UNITS_TO_MM)
+                t_parts.append(sub.transpose(FC_TIME_DIM, MEMBER_DIM,
+                                             SPATIAL_LAT, SPATIAL_LON))
+                ds.close()
+            if not t_parts:
+                print("  no verification data -> skip", flush=True)
                 continue
-            check_window_lengths(verif_counts, month)
-            fc_verif = xr.concat(verif_parts, dim="year", join="override")
-            print(f"  fc_verif  {dict(fc_verif.sizes)}", flush=True)
+            t_da = xr.concat(t_parts, dim="year", join="override")
+            t_da = t_da.clip(min=0.0)
+            print(f"  target     {dict(t_da.sizes)}", flush=True)
 
-            # 4. QDM on wet days only (mm/day throughout) ------------------
-            fc_tr_wet = fc_train.where(fc_train > THRESHOLD_MM)
-            ob_tr_wet = ob_train.where(ob_train > THRESHOLD_MM)
-            fc_ve_wet = fc_verif.where(fc_verif > THRESHOLD_MM)
+            # ---- 4. censoring -------------------------------------------------
+            # Zeros -> U(0, trace) on all three sample sets, BEFORE any mapping.
+            def _censor_block(block, seed_off):
+                rng = np.random.default_rng(RNG_SEED + seed_off)
+                out, _ = censor_dry(block, TRACE_MM, rng)
+                return out
 
-            corrected = qdm_da(fc_tr_wet, ob_tr_wet, fc_ve_wet)
-
-            # dry days stay dry
-            corrected = corrected.where(fc_verif > THRESHOLD_MM, 0.0)
-            corrected = corrected.fillna(0.0).astype("float32")
-            corrected = corrected.rename(f"{FC_VAR}_qdm").assign_attrs(
-                units="mm/day",
-                long_name="QDM-adjusted daily precipitation "
-                          "(wet days corrected, dry days kept dry)",
-                threshold=f"{THRESHOLD_MM} mm/day",
-                training_period=f"{TRAIN_YEARS[0]}-{TRAIN_YEARS[-1]}",
-                method="Quantile Delta Mapping (Cannon et al. 2015)",
-                lead_index=k,
-                target_month=f"{month:02d}",
+            m_c = xr.apply_ufunc(
+                _censor_block, m_da, kwargs={"seed_off": 0},
+                input_core_dims=[[FC_TIME_DIM, MEMBER_DIM]],
+                output_core_dims=[[FC_TIME_DIM, MEMBER_DIM]],
+                vectorize=True, dask="parallelized", output_dtypes=[np.float64],
+                dask_gufunc_kwargs={"allow_rechunk": True},
+            )
+            o_c = xr.apply_ufunc(
+                _censor_block, o_da, kwargs={"seed_off": 1},
+                input_core_dims=[[OB_TIME_DIM]],
+                output_core_dims=[[OB_TIME_DIM]],
+                vectorize=True, dask="parallelized", output_dtypes=[np.float64],
+                dask_gufunc_kwargs={"allow_rechunk": True},
+            )
+            t_c = xr.apply_ufunc(
+                _censor_block, t_da, kwargs={"seed_off": 2},
+                input_core_dims=[[FC_TIME_DIM, MEMBER_DIM]],
+                output_core_dims=[[FC_TIME_DIM, MEMBER_DIM]],
+                vectorize=True, dask="parallelized", output_dtypes=[np.float64],
+                dask_gufunc_kwargs={"allow_rechunk": True},
             )
 
-            # 5. write corrected daily fields ------------------------------
+            # ---- 5. point-by-point QDM, in latitude strips --------------------
+            # Dimensions come from the xarray metadata: nothing is loaded here.
+            n_lat = m_c.sizes[SPATIAL_LAT]
+            n_lon = m_c.sizes[SPATIAL_LON]
+            n_year = t_c.sizes["year"]
+            n_time = t_c.sizes[FC_TIME_DIM]
+            n_mem  = t_c.sizes[MEMBER_DIM]
+            print(f"  grid {n_lat} x {n_lon}; target {n_year} x {n_time} x {n_mem}",
+                  flush=True)
+
+            corrected_blocks = []
+            for lat0 in range(0, n_lat, LAT_BLOCK):
+                lat1 = min(lat0 + LAT_BLOCK, n_lat)
+                sl = {SPATIAL_LAT: slice(lat0, lat1)}
+                n_rows = lat1 - lat0
+
+                # materialise ONE strip (model, obs, target) as numpy
+                m_blk = np.asarray(
+                    m_c.isel(sl).transpose("year", FC_TIME_DIM, MEMBER_DIM,
+                                           SPATIAL_LAT, SPATIAL_LON).values)
+                o_blk = np.asarray(
+                    o_c.isel(sl).transpose("year", OB_TIME_DIM,
+                                           SPATIAL_LAT, SPATIAL_LON).values)
+                t_blk = np.asarray(
+                    t_c.isel(sl).transpose("year", FC_TIME_DIM, MEMBER_DIM,
+                                           SPATIAL_LAT, SPATIAL_LON).values)
+
+                # one delayed task per cell of the strip
+                tasks = []
+                for iy in range(n_rows):
+                    for ix in range(n_lon):
+                        tasks.append(correct_cell(m_blk[..., iy, ix],
+                                                  o_blk[..., iy, ix],
+                                                  t_blk[..., iy, ix],
+                                                  lat0 + iy, ix))
+                res = compute(*tasks)
+
+                # res is one array per cell, in (iy, ix) order -> stack to
+                # (n_rows, n_lon, n_year, n_time, n_mem)
+                blk = np.stack(res).reshape(n_rows, n_lon,
+                                            n_year, n_time, n_mem)
+                assert blk.shape[0] == n_rows and blk.shape[1] == n_lon, blk.shape
+                corrected_blocks.append(blk)
+
+                print(f"    strip lat {lat0}:{lat1} done "
+                      f"({len(tasks)} cells), block {blk.shape}", flush=True)
+
+                del m_blk, o_blk, t_blk, tasks, res, blk
+
+            # concatenate along the latitude axis -> (n_lat, n_lon, ny, nt, nm)
+            corrected_latlon = np.concatenate(corrected_blocks, axis=0)
+            assert corrected_latlon.shape[0] == n_lat, corrected_latlon.shape
+            assert corrected_latlon.shape[1] == n_lon, corrected_latlon.shape
+            # -> (n_year, n_time, n_mem, n_lat, n_lon)
+            corrected_np = corrected_latlon.transpose(2, 3, 4, 0, 1)
+            assert corrected_np.shape == (n_year, n_time, n_mem, n_lat, n_lon), \
+                corrected_np.shape
+            print(f"  corrected array {corrected_np.shape}", flush=True)
+
+            # ---- 6. back to xarray and write ----------------------------------
+            corrected = xr.DataArray(
+                corrected_np.astype("float32"),
+                dims=("year", FC_TIME_DIM, MEMBER_DIM, SPATIAL_LAT, SPATIAL_LON),
+                coords={
+                    "year": t_da["year"].values,
+                    FC_TIME_DIM: t_da[FC_TIME_DIM].values,
+                    MEMBER_DIM: t_da[MEMBER_DIM].values,
+                    SPATIAL_LAT: t_da[SPATIAL_LAT].values,
+                    SPATIAL_LON: t_da[SPATIAL_LON].values,
+                },
+                name=f"{FC_VAR}_qdm",
+                attrs={
+                    "units": "mm/day",
+                    "long_name": "QDM-adjusted daily precipitation "
+                                 "(wet days corrected, dry days kept dry)",
+                    "trace_mm": str(TRACE_MM),
+                    "threshold_mm": str(THRESHOLD_MM),
+                    "method": "Quantile Delta Mapping (Cannon et al. 2015)",
+                    "dry_day_treatment": "censored below trace; zeros -> U(0,trace) "
+                                         "before correction, re-zeroed after",
+                    "lead_index": str(k),
+                    "target_month": f"{month:02d}",
+                    "skip_lead_days": str(SKIP_LEAD_DAYS),
+                    "members_kept": str(N_MEMBERS_KEEP),
+                    "train": f"{TRAIN_YEARS[0]}-{TRAIN_YEARS[-1]}",
+                    "window_note": (
+                        f"model calibrated and corrected on days > {SKIP_LEAD_DAYS} "
+                        f"days after init; MSWEP training pool spans the FULL "
+                        f"month {month:02d}"
+                        if first_lead else
+                        f"model and MSWEP both span the full month {month:02d}"
+                    ),
+                },
+            )
             out_path = OUT_DIR / (
-                f"tp_24h_ecmwf51_mon{month:02d}_init{INIT_MONTH:02d}_"
-                f"{VERIF_YEARS[0]}-{VERIF_YEARS[-1]}_{REGION}_res_ERA5-Land_qdm_MSWEP_{THR_LABEL}.nc"
+                f"{FC_VAR}_24h_mon{month:02d}_init{INIT_MONTH:02d}_"
+                f"{VERIF_YEARS[0]}-{VERIF_YEARS[1]}_{REGION}_"
+                "res_ERA5-Land_qdm_MSWEP.nc"
             )
             out_ds = corrected.to_dataset()
             out_ds.to_netcdf(out_path, encoding={
@@ -425,3 +457,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
