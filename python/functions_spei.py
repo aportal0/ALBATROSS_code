@@ -2,33 +2,51 @@ import calendar
 import numpy as np
 import xarray as xr
 import pandas as pd
-from scipy.stats import fisk, norm
 from scipy.special import gamma
+from scipy.stats import norm
 import os
 from multiprocessing import Pool
 import socket
 
 
+# ---------------------------------------------------------------- utilities
 def get_scratch_path():
-    """Return the scratch root directory based on the current cluster."""
+    """Return the scratch root directory based on the current cluster.
+
+    Dispatches on the machine hostname. Returns the path as a string, or
+    None if the hostname is not recognised (the caller must handle it —
+    note that the original `return print(...)` silently returned None).
+    """
     hostname = socket.gethostname()
     if hostname == "ophfe1":
         return "/home/PERSONALE/alice.portal2/scratch/"
     elif "ac6" in hostname:
-        return "/ec/res4/scratch/ecme4047/" 
-    return print("Hostname was not recognised")
+        return "/ec/res4/scratch/ecme4047/"
+    return None
 
 
 def boxes_african_countries(name_country):
+    """Return the lon/lat bounding box for a supported country name.
+
+    Bounds are in degrees; the box is given as lon_min/lon_max/lat_min/
+    lat_max and is consumed by `subset_box`. Raises KeyError for an
+    unsupported country.
+    """
     boxes = {
-        'ghana':     {'lon_min': -4,  'lon_max': 2,  'lat_min': 4,   'lat_max': 12},
+        'ghana':      {'lon_min': -4, 'lon_max': 2,  'lat_min': 4,   'lat_max': 12},
         'madagascar': {'lon_min': 42, 'lon_max': 51, 'lat_min': -27, 'lat_max': -11},
     }
     return boxes[name_country.lower()]
 
 
 def subset_box(da, box):
-    # Handle both 'longitude' and 'lon' coordinate names
+    """Subset a DataArray to a geographic box, handling both coord namings.
+
+    Accepts 'longitude'/'latitude' or 'lon'/'lat'. The array is sorted by
+    longitude first so that the slice is always increasing; latitude is
+    sliced in descending order (lat_max -> lat_min) as is conventional for
+    atmospheric fields. The result inherits the original coordinate names.
+    """
     lon_name = "longitude" if "longitude" in da.dims or "longitude" in da.coords else "lon"
     lat_name = "latitude" if "latitude" in da.dims or "latitude" in da.coords else "lat"
 
@@ -40,6 +58,11 @@ def subset_box(da, box):
 
 
 def standardize_latlon(da):
+    """Rename 'latitude'/'longitude' coords to the short 'lat'/'lon'.
+
+    Applied after `subset_box` so all downstream code can assume the short
+    names. Returns the renamed DataArray (a no-op if already short).
+    """
     rename_dict = {}
     if "latitude" in da.dims or "latitude" in da.coords:
         rename_dict["latitude"] = "lat"
@@ -49,11 +72,16 @@ def standardize_latlon(da):
         da = da.rename(rename_dict)
     return da
 
+
 # ---------------------------------------------------------------- extraterrestrial Ra
 def _ra_daily(lat_rad, doys):
-    """Daily Ra (MJ/m²/day), fully vectorized.
+    """Daily extraterrestrial radiation Ra in MJ m-2 day-1, vectorised.
 
-    lat_rad: (L,) radians ; doys: (D,) day-of-year → (D, L).
+    Implements FAO-56 Eq. 21. lat_rad is (L,) in radians and doys is (D,)
+    day-of-year, giving a (D, L) result. The solar constant is 0.0820
+    MJ m-2 min-1, `dr` is the inverse relative Earth-Sun distance and
+    `delta` the solar declination. The sunset hour angle `ws` is clipped to
+    [-1, 1] to keep arccos defined through polar day/night.
     """
     doys = np.asarray(doys, dtype=float)
     dr    = 1 + 0.033 * np.cos(2 * np.pi * doys / 365)[:, None]
@@ -69,9 +97,12 @@ def _ra_daily(lat_rad, doys):
 
 
 def _ra_monthly_cached(times, lat_deg, _cache={}):
-    """Monthly Ra (MJ/m²/day), cached per (year, month).
+    """Monthly mean Ra (MJ m-2 day-1) for each timestamp, memoised per (year, month).
 
-    times: array of datetime-like (T,) ; lat_deg: (L,) → (T, L).
+    Ra varies with day-of-year and latitude, so for a monthly series we take
+    the mean daily Ra over the calendar days of each month. `_cache` keys on
+    (year, month) and is safe to share across calls because Ra for a given
+    month and latitude is identical in every call. Returns (T, L).
     """
     lat_rad = np.radians(np.asarray(lat_deg, dtype=float))
     times = pd.DatetimeIndex(times)
@@ -90,6 +121,11 @@ def _ra_monthly_cached(times, lat_deg, _cache={}):
 
 
 def _ra_dataarray(ds, time_dim='time', lat_dim='lat'):
+    """Wrap `_ra_monthly_cached` output as a DataArray aligned to `ds`.
+
+    Carries the time and latitude coordinates from `ds` so the result can be
+    multiplied directly with the temperature variables in the ET0 functions.
+    """
     Ra = _ra_monthly_cached(ds[time_dim].values, ds[lat_dim].values)
     return xr.DataArray(
         Ra, dims=[time_dim, lat_dim],
@@ -100,6 +136,15 @@ def _ra_dataarray(ds, time_dim='time', lat_dim='lat'):
 # ---------------------------------------------------------------- Hargreaves
 def hargreaves_modified(ds, Ra=None, tmin_var='tmin', tmax_var='tmax',
                         precip_var='precip', time_dim='time', lat_dim='lat'):
+    """Modified Hargreaves ET0 (Droogers & Allen 2002), in mm/day.
+
+    Uses the precipitation-corrected temperature range,
+        Td_adj = (Tmax - Tmin) - 0.0123 * P,
+    floored at zero, with coefficients 0.0013 and 0.76 and the +17.0 offset.
+    Requires tmin, tmax and precip in `ds` (units: degC and mm/day).
+    Ra is (T, L) in MJ m-2 day-1 via `_ra_dataarray`; 0.408 converts to
+    mm/day equivalent.
+    """
     if Ra is None:
         Ra = _ra_dataarray(ds, time_dim, lat_dim)
     tmin, tmax, precip = ds[tmin_var], ds[tmax_var], ds[precip_var]
@@ -116,7 +161,14 @@ def hargreaves_modified(ds, Ra=None, tmin_var='tmin', tmax_var='tmax',
 
 
 def hargreaves(ds, Ra=None, tmin_var='tmin', tmax_var='tmax',
-               time_dim='time', lat_dim='lat'):
+               time_dim='time', lat_dim='dim'):
+    """Classic Hargreaves-Samani ET0, in mm/day.
+
+    The original formulation: 0.0023 * (Tmean + 17.8) * sqrt(Tmax - Tmin)
+    * Ra_mm. Not called anywhere in this module — kept as a reference
+    implementation for comparison against `hargreaves_modified`. Note the
+    default `lat_dim` differs from the modified version's.
+    """
     if Ra is None:
         Ra = _ra_dataarray(ds, time_dim, lat_dim)
     tmin, tmax = ds[tmin_var], ds[tmax_var]
@@ -133,6 +185,21 @@ def hargreaves(ds, Ra=None, tmin_var='tmin', tmax_var='tmax',
 
 # ---------------------------------------------------------------- spei
 def _fit_loglogistic_pwm(series):
+    """Fit a 3-parameter log-logistic by unbiased probability-weighted moments.
+
+    Follows the parameterisation used by the SPEI R package
+    (Vicente-Serrano et al. 2010, Appendix). PWM are computed with the
+    unbiased plotting positions (i-1)/(n-1) and (i-1)(i-2)/((n-1)(n-2)),
+    then inverted to shape `beta`, location `loc` and scale `scale`:
+
+        beta  = (2*w1 - w0) / (6*w1 - w0 - 6*w2)
+        gg    = gamma(1 + 1/beta) * gamma(1 - 1/beta)
+        scale = (w0 - 2*w1) * beta / gg
+        loc   = w0 - scale * gg
+
+    Returns (nan, nan, nan) when the sample is too small, or a moment is
+    degenerate.
+    """
     vals = np.asarray(series, dtype=float)
     vals = vals[np.isfinite(vals)]
 
@@ -162,20 +229,23 @@ def _fit_loglogistic_pwm(series):
     scale = ((w0 - 2.0 * w1) * beta) / gg
     loc = w0 - scale * gg
 
-    if not np.isfinite(scale) or not np.isfinite(loc) or scale <= 0.0:
+    if not np.isfinite(scale) or not np.isfinite(loc):
         return np.nan, np.nan, np.nan
 
     return beta, loc, scale
 
 
 def _loglogistic_cdf(x, beta, loc, scale):
+    """Log-logistic CDF F(x) = 1 / (1 + (scale / (x - loc))**-beta).
+
+    x may be any shape; a matching array of probabilities is returned with
+    NaN where x is not finite.
+
+    """
     x = np.asarray(x, dtype=float)
     out = np.full(x.shape, np.nan, dtype=float)
 
-    finite = np.isfinite(x)
-    out[finite & (x <= loc)] = 0.0
-
-    valid = finite & (x > loc)
+    valid = np.isfinite(x)
     if np.any(valid):
         z = (scale / (x[valid] - loc)) ** beta
         out[valid] = z / (1.0 + z)
@@ -184,6 +254,19 @@ def _loglogistic_cdf(x, beta, loc, scale):
 
 
 def _spei_1d(values, months, cal_mask):
+    """Compute SPEI for a single grid point.
+
+    `values` is the accumulated water balance (1-D, time ordered), `months`
+    the corresponding month numbers and `cal_mask` a boolean selecting the
+    calibration period. A separate log-logistic is fitted for each calendar
+    month on the calibration sample only, removing the seasonal cycle; that
+    month's fitted parameters are then applied to every year of that month
+    across the whole record.
+
+    Probabilities are transformed with the standard normal quantile, exactly
+    as the R package does — a fitted CDF of 0.5 maps to SPEI 0. Months whose
+    calibration sample is too small to fit are left as NaN.
+    """
     out = np.full(values.shape, np.nan, dtype=float)
 
     for m in range(1, 13):
@@ -196,15 +279,6 @@ def _spei_1d(values, months, cal_mask):
         if cal_vals.size < 8:
             continue
 
-#         # Fit failure diagnostics        
-#         fit = _fit_loglogistic_pwm_diagnostic(cal_vals)
-#         if not fit["ok"]:
-#             print(f"month {m}: fit failed -> {fit['reason']}")
-#             continue
-#         beta = fit["beta"]
-#         loc = fit["loc"]
-#         scale = fit["scale"]
-
         beta, loc, scale = _fit_loglogistic_pwm(cal_vals)
         if np.isnan(beta):
             continue
@@ -216,7 +290,6 @@ def _spei_1d(values, months, cal_mask):
 
         probs = np.full(vals.shape, np.nan, dtype=float)
         probs[good] = _loglogistic_cdf(vals[good], beta, loc, scale)
-        probs[good] = np.clip(probs[good], 1e-8, 1.0 - 1e-8)
 
         out_month = np.full(vals.shape, np.nan, dtype=float)
         out_month[good] = norm.ppf(probs[good])
@@ -226,16 +299,21 @@ def _spei_1d(values, months, cal_mask):
 
 
 def _fit_loglogistic_pwm_diagnostic(series):
+    """Diagnostic wrapper around the PWM fit, reporting the failure reason.
+
+    Returns a dict with `ok` plus, on failure, a `reason` of
+    'too_few_values', 'bad_denom', 'bad_beta', 'bad_gamma_product',
+    'bad_scale' or 'bad_loc'. On success it also carries `n` and every
+    intermediate moment (w0/w1/w2, denom, beta, g1/g2, gg, loc, scale) so a
+    failed month can be inspected without re-deriving the arithmetic.
+    """
     vals = np.asarray(series, dtype=float)
     vals = vals[np.isfinite(vals)]
 
     if vals.size < 3:
         return {
-            "ok": False,
-            "reason": "too_few_values",
-            "beta": np.nan,
-            "loc": np.nan,
-            "scale": np.nan,
+            "ok": False, "reason": "too_few_values",
+            "beta": np.nan, "loc": np.nan, "scale": np.nan,
         }
 
     vals = np.sort(vals)
@@ -249,8 +327,7 @@ def _fit_loglogistic_pwm_diagnostic(series):
     denom = 6.0 * w1 - w0 - 6.0 * w2
     if not np.isfinite(denom) or np.isclose(denom, 0.0):
         return {
-            "ok": False,
-            "reason": "bad_denom",
+            "ok": False, "reason": "bad_denom",
             "w0": w0, "w1": w1, "w2": w2, "denom": denom,
             "beta": np.nan, "loc": np.nan, "scale": np.nan,
         }
@@ -258,8 +335,7 @@ def _fit_loglogistic_pwm_diagnostic(series):
     beta = (2.0 * w1 - w0) / denom
     if not np.isfinite(beta):
         return {
-            "ok": False,
-            "reason": "bad_beta",
+            "ok": False, "reason": "bad_beta",
             "w0": w0, "w1": w1, "w2": w2, "denom": denom,
             "beta": beta, "loc": np.nan, "scale": np.nan,
         }
@@ -270,8 +346,7 @@ def _fit_loglogistic_pwm_diagnostic(series):
 
     if not np.isfinite(gg) or np.isclose(gg, 0.0):
         return {
-            "ok": False,
-            "reason": "bad_gamma_product",
+            "ok": False, "reason": "bad_gamma_product",
             "w0": w0, "w1": w1, "w2": w2, "denom": denom,
             "beta": beta, "g1": g1, "g2": g2, "gg": gg,
             "loc": np.nan, "scale": np.nan,
@@ -280,10 +355,9 @@ def _fit_loglogistic_pwm_diagnostic(series):
     scale = ((w0 - 2.0 * w1) * beta) / gg
     loc = w0 - scale * gg
 
-    if not np.isfinite(scale) or scale <= 0.0:
+    if not np.isfinite(scale):
         return {
-            "ok": False,
-            "reason": "bad_scale",
+            "ok": False, "reason": "bad_scale",
             "w0": w0, "w1": w1, "w2": w2, "denom": denom,
             "beta": beta, "g1": g1, "g2": g2, "gg": gg,
             "loc": loc, "scale": scale,
@@ -291,32 +365,30 @@ def _fit_loglogistic_pwm_diagnostic(series):
 
     if not np.isfinite(loc):
         return {
-            "ok": False,
-            "reason": "bad_loc",
+            "ok": False, "reason": "bad_loc",
             "w0": w0, "w1": w1, "w2": w2, "denom": denom,
             "beta": beta, "g1": g1, "g2": g2, "gg": gg,
             "loc": loc, "scale": scale,
         }
 
     return {
-        "ok": True,
-        "reason": "ok",
+        "ok": True, "reason": "ok",
         "n": n,
-        "w0": w0,
-        "w1": w1,
-        "w2": w2,
-        "denom": denom,
-        "beta": beta,
-        "g1": g1,
-        "g2": g2,
-        "gg": gg,
-        "loc": loc,
-        "scale": scale,
+        "w0": w0, "w1": w1, "w2": w2, "denom": denom,
+        "beta": beta, "g1": g1, "g2": g2, "gg": gg,
+        "loc": loc, "scale": scale,
     }
 
 
-
 def _spei_point_worker(args):
+    """Multiprocessing entry point: run `_spei_1d` for one grid point.
+
+    Takes a single tuple so it can be dispatched via `Pool.imap_unordered`,
+    which only passes one argument. Returns (index, float32 array) so the
+    parent can scatter results back without pickling the whole field. Points
+    with fewer than `min_valid` finite values are returned all-NaN early,
+    skipping the per-month fits entirely.
+    """
     j, vals, months, cal_mask, min_valid = args
 
     if np.isfinite(vals).sum() < min_valid:
@@ -329,6 +401,24 @@ def _spei_point_worker(args):
 def compute_spei(balance, scale, cal_start, cal_end,
                  time_dim='time', lat_dim='lat', lon_dim='lon',
                  n_workers=None, chunk_size=200):
+    """Compute the SPEI field at a given accumulation scale.
+
+    `balance` is the climatic water balance (P - ET0), monthly. The series is
+    accumulated over a `scale`-month window with min_periods=scale, so the
+    leading scale-1 steps are NaN rather than partial sums. A log-logistic is
+    fitted per grid point and per calendar month on the `cal_start`-`cal_end`
+    window, then applied to the whole record, and the resulting probability
+    is transformed to a standard normal score.
+
+    Space is stacked into a single `point` dimension before the loop so the
+    per-point work parallelises cleanly; points with any finite value are
+    kept and the rest are filled back with NaN at the end. `n_workers`
+    defaults to SLURM_CPUS_PER_TASK (1 if unset), and runs serially in that
+    case.
+
+    Returns a DataArray named 'SPEI' with the original space restored,
+    carrying scale, calibration window and units in its attrs.
+    """
     # Rolling accumulation of climatic water balance
     accum = balance.rolling({time_dim: scale}, min_periods=scale).sum()
 
@@ -344,7 +434,7 @@ def compute_spei(balance, scale, cal_start, cal_end,
 
     valid_points = np.isfinite(arr).any(axis=0)
     arr_valid = arr[:, valid_points]
-    
+
     out_valid = np.full(arr_valid.shape, np.nan, dtype=np.float32)
 
     min_valid = max(8, scale + 6)
@@ -383,5 +473,4 @@ def compute_spei(balance, scale, cal_start, cal_end,
     spei.attrs["calibration_end"] = cal_end
 
     return spei
-
 

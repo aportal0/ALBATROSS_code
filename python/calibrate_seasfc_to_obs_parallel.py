@@ -61,7 +61,7 @@ OUT_DIR = Path("/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_10/tp/ca
 
 REGION      = "Madagascar"
 TRAIN_YEARS = range(1993, 2022 + 1)
-VERIF_YEARS = range(2023, 2025 + 1)
+VERIF_YEARS = range(1993, 2025 + 1)
 INIT_MONTH  = 10
 N_MONTHS    = 3
 
@@ -210,9 +210,18 @@ def correct_cell(m_pool, o_pool, t_cens, iy, ix):
         flat = tgt.ravel()
         p = np.interp(flat, xm, q, left=QUANTILE_MIN, right=1.0 - QUANTILE_MIN)
         ratio = np.interp(p, q, xo) / np.interp(p, q, xm)
-        out[yi] = (flat * ratio).reshape(tgt.shape)
+        corr = flat * ratio
 
-    return require_zero(out, TRACE_MM).astype(np.float32)
+        # zero where the OBSERVED value at that quantile is below the trace:
+        # the position in the distribution is dry in the observations
+        obs_at_p = np.interp(p, q, xo)
+        corr[obs_at_p <= TRACE_MM] = 0.0
+        # zero where the CORRECTED value is below the trace
+        corr[corr < TRACE_MM] = 0.0
+
+        out[yi] = corr.reshape(tgt.shape)
+
+    return out.astype(np.float32)
 
 
 # ----------------------------------------------------------------------
@@ -437,7 +446,7 @@ def main():
             )
             out_path = OUT_DIR / (
                 f"{FC_VAR}_24h_mon{month:02d}_init{INIT_MONTH:02d}_"
-                f"{VERIF_YEARS[0]}-{VERIF_YEARS[1]}_{REGION}_"
+                f"{VERIF_YEARS[0]}-{VERIF_YEARS[-1]}_{REGION}_"
                 "res_ERA5-Land_qdm_MSWEP.nc"
             )
             out_ds = corrected.to_dataset()

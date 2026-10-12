@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=drydays
+#SBATCH --job-name=calibrate
 #SBATCH --account=spitport
 #SBATCH --qos=nf
 #SBATCH --partition=gpil
@@ -32,4 +32,5 @@ export MKL_NUM_THREADS=1
 # ---- run -------------------------------------------------------------
 PYTHON_DIR="/home/ecme4047/ALBATROSS_code/python"
 srun --cpu-bind=cores python3 ${PYTHON_DIR}/calibrate_seasfc_to_obs_parallel.py
+# srun --cpu-bind=cores python3 ${PYTHON_DIR}/drydays_seasfc_obs_parallel.py
 
