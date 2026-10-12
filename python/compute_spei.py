@@ -18,7 +18,7 @@ def main():
     cal_start = f"{year_range[0]}-01-01"
     cal_end   = f"{year_range[1]}-12-31"
 
-    method = "Mod-Hargreaves" # "Mod-Hargreaves" or "Hargreaves"
+    method = "Hargreaves" # "Mod-Hargreaves" or "Hargreaves"
     country = "Madagascar"
 
     # --- load ---

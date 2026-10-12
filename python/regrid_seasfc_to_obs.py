@@ -10,7 +10,7 @@ import functions_spei as fSPEI
 # -----------------------------
 model = "ecmwf51"
 init  = 10
-list_var = ["tp"]                          # ["t2m-max", "t2m-min", "tp"]
+list_var = ["tp", "t2m-max", "t2m-min"]                          # ["t2m-max", "t2m-min", "tp"]
 
 dir_scratch = fSPEI.get_scratch_path()
 dir_era5  = dir_scratch + "ERA5-Land/t2m/daily/"

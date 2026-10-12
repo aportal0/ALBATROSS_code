@@ -245,10 +245,11 @@ def _loglogistic_cdf(x, beta, loc, scale):
     x = np.asarray(x, dtype=float)
     out = np.full(x.shape, np.nan, dtype=float)
 
-    valid = np.isfinite(x)
+    base = scale / (x - loc) 
+    valid = np.isfinite(x) & (base>=0)
     if np.any(valid):
-        z = (scale / (x[valid] - loc)) ** beta
-        out[valid] = z / (1.0 + z)
+        z = base[valid] ** (-beta)
+        out[valid] = 1.0 / (1.0 + z)
 
     return out
 
