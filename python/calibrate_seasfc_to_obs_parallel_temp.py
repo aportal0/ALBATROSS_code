@@ -120,10 +120,6 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 LEAD_MONTHS = [((INIT_MONTH - 1 + k) % 12) + 1 for k in range(N_MONTHS)]
 TARGET = [(m, (INIT_MONTH - 1 + k) // 12) for k, m in enumerate(LEAD_MONTHS)]
 
-#################################
-#### FROM HERE ##################
-
-
 
 # ----------------------------------------------------------------------
 # helpers
@@ -134,13 +130,16 @@ def _init_year(fname):
 
 
 def fc_path(y):
-    return FC_DIR / (f"{TEMP_TYPE}_24h_ecmwf51_init{y}{INIT_MONTH:02d}_"
+    return FC_DIR / (f"{FC_VAR}_24h_ecmwf51_init{y}{INIT_MONTH:02d}_"
                      f"{REGION}_res_ERA5-Land_patch.nc")
 
 
-def ob_path(y, yoff, month):
-    return OB_DIR / (f"{TEMP_TYPE}_daily_{y + yoff}{month:02d}_"
-                     f"{REGION}_res_ERA5-Land.nc")
+def ob_path(y, yoff):
+    if VAR_TYPE == "tmin":
+        stat = "minimum"
+    elif VAR_TYPE == "tmax"
+        stat = "maximum"
+    return OB_DIR / str{y} / (f"{OB_VAR}_daily_{stat}_{y + yoff}.nc")
 
 
 def lead_keep_mask(da, month, init_year, month_day=1):
@@ -399,7 +398,7 @@ def main():
                     SPATIAL_LAT: t_da[SPATIAL_LAT].values,
                     SPATIAL_LON: t_da[SPATIAL_LON].values,
                 },
-                name=f"{TEMP_TYPE}_qdm",
+                name=f"{FC_VAR}_qdm",
                 attrs={
                     "units": OUT_UNITS,
                     "long_name": f"QDM-adjusted daily {TEMP_TYPE} "
@@ -422,9 +421,9 @@ def main():
                 },
             )
             out_path = OUT_DIR / (
-                f"{TEMP_TYPE}_24h_mon{month:02d}_init{INIT_MONTH:02d}_"
+                f"{FC_VAR}_24h_mon{month:02d}_init{INIT_MONTH:02d}_"
                 f"{VERIF_YEARS[0]}-{VERIF_YEARS[1]}_{REGION}_"
-                "res_ERA5-Land_qdm.nc"
+                "res_ERA5-Land_qdm_ERA5-Land.nc"
             )
             out_ds = corrected.to_dataset()
             out_ds.to_netcdf(out_path, encoding={
