@@ -10,7 +10,7 @@ import functions_spei as fSPEI
 # -----------------------------
 model = "ecmwf51"
 init  = 10
-list_var = ["tp", "t2m-max", "t2m-min"]                          # ["t2m-max", "t2m-min", "tp"]
+list_var = ["tp", "mx2t24", "mn2t24"]                          # ["t2m-max", "t2m-min", "tp"]
 
 dir_scratch = fSPEI.get_scratch_path()
 dir_era5  = dir_scratch + "ERA5-Land/t2m/daily/"
@@ -25,7 +25,7 @@ weights_patch = os.path.join(dir_model, f"weights_{model}_to_era5land_{method_pa
 weights_cons  = os.path.join(dir_model, f"weights_{model}_to_era5land_{method_cons}_{country.lower()}.nc")
 
 years = range(1993, 2025 + 1)
-UNITS_MAP   = {"tp": "m", "t2m-max": "K", "t2m-min": "K"}
+UNITS_MAP   = {"tp": "m", "mx2t24": "K", "mn2t24": "K"}
 
 
 # -----------------------------
@@ -68,29 +68,19 @@ def build_target_grid(name_country):
     return da
 
 
-def open_model_file(model, varname, year, month_init):
-    fdir = dir_model + f"24h/init_{month_init:02d}/{varname}/"
-    fname = f"{varname}_24h_{model}_init{year}{month_init:02d}_subsaharan-africa.nc"
+def open_model_file(model, var, year, month_init):
+    fdir = dir_model + f"24h/init_{month_init:02d}/{var}/"
+    fname = f"{var}_24h_{model}_init{year}{month_init:02d}_subsaharan-africa.nc"
     fpath = os.path.join(fdir, fname)
     if not os.path.exists(fpath):
         return None
 
     ds = xr.open_dataset(fpath)
-    var = varname_to_var(varname)
     if var not in ds:
         raise KeyError(f"{var} not found in {fpath}")
     da = ds[var]
     da = fSPEI.standardize_latlon(da)
     return da
-
-
-def varname_to_var(varname):
-    if varname == "tp":
-        return varname
-    if varname == "t2m-max":
-        return "mx2t24"
-    if varname == "t2m-min":
-        return "mn2t24"
 
 
 def get_sample_src(model, year):
@@ -164,19 +154,18 @@ sample_src = get_sample_src(model, 1993)
 regridder_patch = make_regridder(sample_src, target, method_patch, weights_patch)
 regridder_cons = make_regridder(sample_src, target, method_cons, weights_cons)
 
-for varname in list_var:
-    dir_in  = dir_model + f"24h/init_{init:02d}/{varname}/"
-    dir_out = dir_model + f"24h/init_{init:02d}/{varname}/regridded_ERA5-Land/"
+for var in list_var:
+    dir_in  = dir_model + f"24h/init_{init:02d}/{var}/"
+    dir_out = dir_model + f"24h/init_{init:02d}/{var}/regridded_ERA5-Land/"
     os.makedirs(dir_out, exist_ok=True)
-    var = varname_to_var(varname)
 
-    is_precip = (varname == "tp")
+    is_precip = (var == "tp")
     method_used = method_patch
 
     for year in years:
-        da_year = open_model_file(model, varname, year, init)
+        da_year = open_model_file(model, var, year, init)
         if da_year is None:
-            print(f"Missing file: {varname}_24h_{model}_init{year}{init:02d}_subsaharan-africa.nc")
+            print(f"Missing file: {var}_24h_{model}_init{year}{init:02d}_subsaharan-africa.nc")
             continue
 
         # Deaccumulate precipitation values
@@ -197,7 +186,7 @@ for varname in list_var:
         ds_out = xr.Dataset({var: da_rg})
         out_file = os.path.join(
             dir_out,
-            f"{varname}_24h_{model}_init{year}{init:02d}_{country}_res_ERA5-Land_{method_used}.nc"
+            f"{var}_24h_{model}_init{year}{init:02d}_{country}_res_ERA5-Land_{method_used}.nc"
         )
         ds_out.to_netcdf(out_file)
         print(f"Saved {out_file}")
