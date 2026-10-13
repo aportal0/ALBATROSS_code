@@ -73,9 +73,9 @@ FC_VAR = FC_VAR_BY_TYPE[TEMP_TYPE]
 OB_VAR = OB_VAR_BY_TYPE[TEMP_TYPE]
 
 # Directories
-FC_DIR = Path("/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_{INIT_MONTH}/{FC_VAR}/regridded_ERA5-Land")
-OB_DIR = Path("/ec/res4/scratch/ecme4047/ec/res4/scratch/ecme4047/ERA5-Land/{OB_VAR}/daily")
-OUT_DIR = Path("/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_{INIT_MONTH}/{FC_VAR}/calibrated_ERA5-Land")
+FC_DIR = Path(f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_{INIT_MONTH}/{FC_VAR}/regridded_ERA5-Land")
+OB_DIR = Path(f"/ec/res4/scratch/ecme4047/ERA5-Land/{OB_VAR}/daily")
+OUT_DIR = Path(f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_{INIT_MONTH}/{FC_VAR}/calibrated_ERA5-Land")
 
 # Units: BOTH series must be in the SAME unit. Set the conversion to the unit
 # you want to work and plot in. K -> degC subtracts 273.15; if the files are
@@ -101,7 +101,7 @@ MEMBER_DIM      = "number"
 FC_TIME_DIM     = "forecast_period"
 FC_SELECT_COORD = "valid_time"
 FC_CONCAT_DIM   = "forecast_reference_time"
-OB_TIME_DIM     = "time"
+OB_TIME_DIM     = "valid_time"
 
 SPATIAL_LAT = "lat"
 SPATIAL_LON = "lon"
@@ -134,12 +134,12 @@ def fc_path(y):
                      f"{REGION}_res_ERA5-Land_patch.nc")
 
 
-def ob_path(y, yoff):
-    if VAR_TYPE == "tmin":
+def ob_path(y, yoff, month):
+    if TEMP_TYPE == "tmin":
         stat = "minimum"
-    elif VAR_TYPE == "tmax"
+    elif TEMP_TYPE == "tmax":
         stat = "maximum"
-    return OB_DIR / str{y} / (f"{OB_VAR}_daily_{stat}_{y + yoff}.nc")
+    return OB_DIR / str(y+yoff) / (f"{OB_VAR}_daily_{stat}_{y + yoff}{month:02d}.nc")
 
 
 def lead_keep_mask(da, month, init_year, month_day=1):
