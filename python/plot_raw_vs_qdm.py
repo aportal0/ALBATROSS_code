@@ -46,54 +46,66 @@ import cartopy.feature as cfeature
 # ----------------------------------------------------------------------
 # configuration -- edit these
 # ----------------------------------------------------------------------
+RAW_VAR = "mn2t24"
+QDM_VAR = RAW_VAR + "_qdm"
+if RAW_VAR == "tp":
+    NAME_VAR = "precipitation" 
+elif RAW_VAR == "mn2t24":
+    NAME_VAR = "min temperature"
+elif RAW_VAR == "mx2t24":
+    NAME_VAR = "max temperature"
+
+
 INIT_YEAR  = 2025          # initialization year of the RAW file
 INIT_MONTH = 10            # initialization month (October)
 
-LEAD_DAYS  = 35            # LEAD in days since the initialization:
+LEAD_DAYS  = 50            # LEAD in days since the initialization:
                            #   raw       -> forecast_period = LEAD_DAYS * 24 h
                            #   corrected -> forecast_period = LEAD_DAYS days
 
 TARGET_MONTH = 11          # corrected file to open: mon10, mon11 or mon12
-MEMBER       = 5           # ensemble member index
+MEMBER       = 12           # ensemble member index
 
 YEAR_INDEX = INIT_YEAR - 2023            # corrected file: 0, 1, 2 -> verification years
 
 REGION     = "Madagascar"
 VERSION    = "ecmwf51"
 RESOLUTION = "ERA5-Land"
+QDM_REF = "MSWEP" if RAW_VAR=="tp" else RESOLUTION
 VERIF_YEARS = [2023, 2024, 2025]
 
-VMAX = None                # shared colour max in mm/day; None -> 99th pct
-CMAP = "YlGnBu"
+VMAX = None                # shared colour max; None -> 99th pct
+VMIN = None
+CMAP = "YlGnBu" if RAW_VAR=="tp" else "plasma"
 
 # ----------------------------------------------------------------------
 # paths
 # ----------------------------------------------------------------------
-RAW_DIR = Path(f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_{INIT_MONTH}/tp/"
-               "regridded_ERA5-Land")
-QDM_DIR = Path(f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_{INIT_MONTH}/tp/"
-               "calibrated_MSWEP")
-
-RAW_VAR = "tp"
-QDM_VAR = "tp_qdm"
+RAW_DIR = Path(f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_{INIT_MONTH}/{RAW_VAR}/"
+               f"regridded_{RESOLUTION}")
+QDM_DIR = Path(f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_{INIT_MONTH}/{RAW_VAR}/"
+               f"calibrated_{QDM_REF}")
 
 FC_TIME_DIM = "forecast_period"
 FC_SELECT   = "valid_time"       # coordinate on forecast_period (raw file only)
 MEMBER_DIM  = "number"
 LAT, LON    = "lat", "lon"
 
-RAW_TO_MM = 1000.0               # raw tp in metres -> mm/day
-QDM_TO_MM = 1.0                  # corrected file already mm/day
-PLOT_UNITS = "mm/day"
+if RAW_VAR == "tp":
+    RAW_TO_MM = 1000.0               # raw tp in metres -> mm/day
+    QDM_TO_MM = 1.0                  # corrected file already mm/day
+    PLOT_UNITS = "mm/day"
+elif RAW_VAR[-4:] == "2t24":
+    PLOT_UNITS = "K"
 
 OUT_DIR = Path("/ec/res4/scratch/ecme4047/figures/model_calibration")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-RAW_FILE = RAW_DIR / (f"tp_24h_{VERSION}_init{INIT_YEAR:04d}{INIT_MONTH:02d}_"
+RAW_FILE = RAW_DIR / (f"{RAW_VAR}_24h_{VERSION}_init{INIT_YEAR:04d}{INIT_MONTH:02d}_"
                       f"{REGION}_res_{RESOLUTION}_patch.nc")
-QDM_FILE = QDM_DIR / (f"tp_24h_mon{TARGET_MONTH:02d}_init{INIT_MONTH:02d}_"
+QDM_FILE = QDM_DIR / (f"{RAW_VAR}_24h_mon{TARGET_MONTH:02d}_init{INIT_MONTH:02d}_"
                       f"{VERIF_YEARS[0]}-{VERIF_YEARS[-1]}_{REGION}_"
-                      f"res_{RESOLUTION}_qdm_MSWEP.nc")
+                      f"res_{RESOLUTION}_qdm_{QDM_REF}.nc")
 
 
 def load_raw(lead_days=LEAD_DAYS, member=MEMBER, path=RAW_FILE):
@@ -132,7 +144,9 @@ def load_raw(lead_days=LEAD_DAYS, member=MEMBER, path=RAW_FILE):
     if da.ndim != 2:
         raise ValueError(f"unexpected raw field dims {da.dims} shape {da.shape}")
 
-    field = np.asarray(da.values, dtype=np.float64) * RAW_TO_MM
+    field = np.asarray(da.values, dtype=np.float64) 
+    if RAW_VAR=="tp":
+        field *= RAW_TO_MM
     vt_str = (str(ds[FC_SELECT].isel({FC_TIME_DIM: int(hit[0])}).values)[:16]
               if FC_SELECT in ds.coords else "")
     lat, lon = ds[LAT].values, ds[LON].values
@@ -170,7 +184,9 @@ def load_qdm(lead_days=LEAD_DAYS, member=MEMBER, year_index=YEAR_INDEX,
 
     sub = ds[QDM_VAR].isel(year=year_index, **{FC_TIME_DIM: int(hit[0])},
                            **{MEMBER_DIM: member}).squeeze(drop=True)
-    field = np.asarray(sub.values, dtype=np.float64) * QDM_TO_MM
+    field = np.asarray(sub.values, dtype=np.float64)
+    if RAW_VAR=="tp":
+        field *= QDM_TO_MM
     year_val = int(ds["year"].isel(year=year_index).values)
     lat, lon = ds[LAT].values, ds[LON].values
     ds.close()
@@ -191,36 +207,40 @@ def main():
     raw, raw_vt, lat_r, lon_r = load_raw()
     print(f"raw  : valid_time {raw_vt}  member {MEMBER}  "
           f"min={np.nanmin(raw):.2f} max={np.nanmax(raw):.2f} "
-          f"mean={np.nanmean(raw):.2f} mm/day")
+          f"mean={np.nanmean(raw):.2f} {PLOT_UNITS}")
 
     qdm, lead, year_val, lat_q, lon_q = load_qdm()
     print(f"qdm  : lead {lead} d  year {year_val}  member {MEMBER}  "
           f"min={np.nanmin(qdm):.2f} max={np.nanmax(qdm):.2f} "
-          f"mean={np.nanmean(qdm):.2f} mm/day\n")
+          f"mean={np.nanmean(qdm):.2f} {PLOT_UNITS}\n")
 
     if raw.shape != qdm.shape:
         raise ValueError(f"grid mismatch: raw {raw.shape} vs qdm {qdm.shape}")
 
     vmax = (float(np.nanpercentile(np.concatenate([raw.ravel(), qdm.ravel()]), 99))
             or 1.0) if VMAX is None else float(VMAX)
-    print(f"shared colour scale: 0 .. {vmax:.2f} mm/day\n")
+    vmin = (float(np.nanpercentile(np.concatenate([raw.ravel(), qdm.ravel()]), 1))
+            or 1.0) if VMIN is None else float(VMIN)
+    if RAW_VAR == "tp":  
+        vmin = 0 
+    print(f"shared colour scale: {vmin:.2f} .. {vmax:.2f} {PLOT_UNITS}\n")
 
     fig, axes = plt.subplots(1, 2, figsize=(7, 6.3), dpi=140,
             subplot_kw={"projection": ccrs.PlateCarree()})
 
     for ax, field, lat, lon, title in [
         (axes[0], raw, lat_r, lon_r,
-         f"RAW SEAS5 tp - init {INIT_YEAR:04d}-{INIT_MONTH:02d}\n"
+         f"RAW SEAS5 {RAW_VAR} - init {INIT_YEAR:04d}-{INIT_MONTH:02d}\n"
          f"lead {LEAD_DAYS} d ({lead_date.isoformat()}) - member {MEMBER}\n"
-         f"mean {np.nanmean(raw):.2f} mm/day"),
+         f"mean {np.nanmean(raw):.2f} {PLOT_UNITS}"),
         (axes[1], qdm, lat_q, lon_q,
          f"QDM-corrected vs MSWEP - init {INIT_MONTH:02d}, mon{TARGET_MONTH:02d}\n"
-         f"lead {LEAD_DAYS} d ({lead_date.isoformat()}) - "
+         f"lead {LEAD_DAYS} d h({lead_date.isoformat()}) - "
          f"member {MEMBER} (year {year_val})\n"
-         f"mean {np.nanmean(qdm):.2f} mm/day"),
+         f"mean {np.nanmean(qdm):.2f} {PLOT_UNITS}"),
     ]:
         im = ax.pcolormesh(lon, lat, field, cmap=CMAP,
-                           vmin=0, vmax=vmax, shading="auto",
+                           vmin=vmin, vmax=vmax, shading="auto",
                            transform=ccrs.PlateCarree())
         ax.add_feature(cfeature.COASTLINE, linewidth=0.6, edgecolor="black")
         ax.add_feature(cfeature.BORDERS, linewidth=0.4, edgecolor="gray")
@@ -234,9 +254,9 @@ def main():
     # dedicate axes for the colorbar, placed in the figure coordinates
     cax = fig.add_axes([0.92, 0.2, 0.015, 0.6])   # [left, bottom, width, height]
     cbar = fig.colorbar(im, cax=cax, extend="max")
-    cbar.set_label(f"tp ({PLOT_UNITS})")
+    cbar.set_label(f"{RAW_VAR} ({PLOT_UNITS})")
 
-    fig.suptitle(f"Daily precipitation at lead {LEAD_DAYS} d "
+    fig.suptitle(f"Daily {NAME_VAR} at lead {LEAD_DAYS} d "
                  f"({lead_date.isoformat()}) - raw vs QDM-corrected "
                  f"(member {MEMBER})", fontsize=11)
 

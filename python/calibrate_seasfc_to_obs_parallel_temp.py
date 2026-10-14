@@ -84,13 +84,13 @@ FC_UNITS_IN  = "K"         # "K" or "celsius"
 OB_UNITS_IN  = "K"
 OUT_UNITS    = "K"
 
-K_TO_C = 273.15
+C_TO_K = 273.15
 
 
-def to_celsius(arr, units_in):
-    """Convert a temperature array to degrees Celsius. K subtracts 273.15."""
-    if str(units_in).lower() in ("k", "kelvin"):
-        return arr - K_TO_C
+def to_kelvin(arr, units_in):
+    """Convert a temperature array to Kelvin. K adds 273.15."""
+    if str(units_in).lower() in ("c", "celsius"):
+        return arr + C_TO_K
     return arr
 
 
@@ -103,10 +103,12 @@ FC_SELECT_COORD = "valid_time"
 FC_CONCAT_DIM   = "forecast_reference_time"
 OB_TIME_DIM     = "valid_time"
 
-SPATIAL_LAT = "lat"
-SPATIAL_LON = "lon"
+# forecast spatial names
+FC_LAT, FC_LON = "lat", "lon"
+# observation spatial names (the reference files use the long form)
+OB_LAT, OB_LON = "latitude", "longitude"
 
-N_QUANTILES  = 100
+N_QUANTILES  = 50
 QUANTILE_MIN = 0.01
 
 # ---- parallelism / memory ----
@@ -273,11 +275,11 @@ def main():
                     continue
                 sub = sub.isel({MEMBER_DIM: slice(0, N_MEMBERS_KEEP)})
                 sub = sub.squeeze(FC_CONCAT_DIM, drop=True)
-                sub = xr.apply_ufunc(to_celsius, sub, FC_UNITS_IN,
+                sub = xr.apply_ufunc(to_kelvin, sub, FC_UNITS_IN,
                                      dask="parallelized",
                                      output_dtypes=[np.float64])
                 m_parts.append(sub.transpose(FC_TIME_DIM, MEMBER_DIM,
-                                             SPATIAL_LAT, SPATIAL_LON))
+                                             FC_LAT, FC_LON))
                 ds.close()
             if not m_parts:
                 print("  no model training data -> skip", flush=True)
@@ -293,14 +295,14 @@ def main():
                     continue
                 ds = xr.open_dataset(f, chunks={OB_TIME_DIM: TIME_CHUNK})
                 ob = ds[OB_VAR]
-                extra = [d for d in ob.dims if d not in (SPATIAL_LAT, SPATIAL_LON)
+                extra = [d for d in ob.dims if d not in (OB_LAT, OB_LON)
                          and d != OB_TIME_DIM]
                 if extra:
                     ob = ob.isel({d: 0 for d in extra}, drop=True)
-                ob = xr.apply_ufunc(to_celsius, ob, OB_UNITS_IN,
+                ob = xr.apply_ufunc(to_kelvin, ob, OB_UNITS_IN,
                                     dask="parallelized",
                                     output_dtypes=[np.float64])
-                o_parts.append(ob.transpose(OB_TIME_DIM, SPATIAL_LAT, SPATIAL_LON))
+                o_parts.append(ob.transpose(OB_TIME_DIM, OB_LAT, OB_LON))
                 ds.close()
             if not o_parts:
                 print("  no reference training data -> skip", flush=True)
@@ -323,11 +325,11 @@ def main():
                     continue
                 sub = sub.isel({MEMBER_DIM: slice(0, N_MEMBERS_KEEP)})
                 sub = sub.squeeze(FC_CONCAT_DIM, drop=True)
-                sub = xr.apply_ufunc(to_celsius, sub, FC_UNITS_IN,
+                sub = xr.apply_ufunc(to_kelvin, sub, FC_UNITS_IN,
                                      dask="parallelized",
                                      output_dtypes=[np.float64])
                 t_parts.append(sub.transpose(FC_TIME_DIM, MEMBER_DIM,
-                                             SPATIAL_LAT, SPATIAL_LON))
+                                             FC_LAT, FC_LON))
                 ds.close()
             if not t_parts:
                 print("  no verification data -> skip", flush=True)
@@ -336,8 +338,8 @@ def main():
             print(f"  target {dict(t_da.sizes)}", flush=True)
 
             # ---- 4. point-by-point additive QDM, in latitude strips ----------
-            n_lat = m_da.sizes[SPATIAL_LAT]
-            n_lon = m_da.sizes[SPATIAL_LON]
+            n_lat = m_da.sizes[FC_LAT]
+            n_lon = m_da.sizes[FC_LON]
             n_year = t_da.sizes["year"]
             n_time = t_da.sizes[FC_TIME_DIM]
             n_mem  = t_da.sizes[MEMBER_DIM]
@@ -347,18 +349,19 @@ def main():
             corrected_blocks = []
             for lat0 in range(0, n_lat, LAT_BLOCK):
                 lat1 = min(lat0 + LAT_BLOCK, n_lat)
-                sl = {SPATIAL_LAT: slice(lat0, lat1)}
+                fc_sl = {FC_LAT: slice(lat0, lat1)}
+                ob_sl = {OB_LAT: slice(lat0, lat1)}
                 n_rows = lat1 - lat0
 
                 m_blk = np.asarray(
-                    m_da.isel(sl).transpose("year", FC_TIME_DIM, MEMBER_DIM,
-                                            SPATIAL_LAT, SPATIAL_LON).values)
+                    m_da.isel(fc_sl).transpose("year", FC_TIME_DIM, MEMBER_DIM,
+                                            FC_LAT, FC_LON).values)
                 o_blk = np.asarray(
-                    o_da.isel(sl).transpose("year", OB_TIME_DIM,
-                                            SPATIAL_LAT, SPATIAL_LON).values)
+                    o_da.isel(ob_sl).transpose("year", OB_TIME_DIM,
+                                            OB_LAT, OB_LON).values)
                 t_blk = np.asarray(
-                    t_da.isel(sl).transpose("year", FC_TIME_DIM, MEMBER_DIM,
-                                            SPATIAL_LAT, SPATIAL_LON).values)
+                    t_da.isel(fc_sl).transpose("year", FC_TIME_DIM, MEMBER_DIM,
+                                            FC_LAT, FC_LON).values)
 
                 tasks = []
                 for iy in range(n_rows):
@@ -390,13 +393,13 @@ def main():
             # ---- 5. back to xarray and write ---------------------------------
             corrected = xr.DataArray(
                 corrected_np.astype("float32"),
-                dims=("year", FC_TIME_DIM, MEMBER_DIM, SPATIAL_LAT, SPATIAL_LON),
+                dims=("year", FC_TIME_DIM, MEMBER_DIM, FC_LAT, FC_LON),
                 coords={
                     "year": t_da["year"].values,
                     FC_TIME_DIM: t_da[FC_TIME_DIM].values,
                     MEMBER_DIM: t_da[MEMBER_DIM].values,
-                    SPATIAL_LAT: t_da[SPATIAL_LAT].values,
-                    SPATIAL_LON: t_da[SPATIAL_LON].values,
+                    FC_LAT: t_da[FC_LAT].values,
+                    FC_LON: t_da[FC_LON].values,
                 },
                 name=f"{FC_VAR}_qdm",
                 attrs={

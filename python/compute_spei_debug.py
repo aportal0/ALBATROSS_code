@@ -8,7 +8,7 @@ def main():
     dir_scratch = fSPEI.get_scratch_path()
 
     dir_pet    = dir_scratch + "ERA5-Land/ET0/monthly/"
-    dir_precip = dir_scratch + "ERA5-Land/ET0/monthly/"
+    dir_precip = dir_scratch + "MSWEP/MSWEP_V316_test/Past/Monthly/regridded_ERA5-Land/"
     dir_out    = dir_scratch + "ERA5-Land/SPEI/monthly/"
     dir_mask   = dir_scratch + "ERA5-Land/"
     dir_figs   = dir_scratch + "/figures/SPEI/"
@@ -22,6 +22,10 @@ def main():
     cal_end   = f"{year_range[1]}-12-31"
 
     method = "Mod-Hargreaves" # "Mod-Hargreaves" or "Hargreaves"
+    if method=="Mod-Hargreaves":
+        method_label = "MH"
+    elif method=="Hargreaves":
+        method_label = "H"
     country = "Madagascar"
 
     # --- load ---
@@ -78,6 +82,20 @@ def main():
         # --- accumulate balance over scale
         balance_accum = fSPEI.rolling_water_balance(balance_gp, scale=scale)
         
+        wb = fSPEI.years_water_balance(
+            balance_accum,
+            dates=balance_dates,
+            month=month,
+            cal_start=cal_start,
+            cal_end=cal_end,
+        )
+        fSPEI.plot_years_on_line(
+            wb,
+            ylabel=f"{scale}-month water balance (mm)",
+            title=f"Water balance by year — {method_label}, month={month}, scale={scale}",
+            output_path=f"{dir_figs}water_balance_years_{method_label}_mon{month}_scale{scale}_lat{lat_diagn}lon{lon_diagn}.png",
+        )
+
         # --- compute SPEI for grid popint ---
         diag = fSPEI.monthwise_spei_diagnostic(
             values=balance_accum,
@@ -92,10 +110,6 @@ def main():
             "loc": fit_info["loc"],
             "scale": fit_info["scale"],
         }
-        if method=="Mod-Hargreaves":
-            method_label = "MH"
-        elif method=="Hargreaves":
-            method_label = "H"
         
         fSPEI.plot_fit_diagnostic(
                 diag["sample"]["cal_values"], 

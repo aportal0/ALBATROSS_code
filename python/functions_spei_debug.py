@@ -382,3 +382,94 @@ def plot_spei_histogram(z_cal, month=None, scale=None, output_path="spei_histogr
     fig.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
+
+# ---------------------------------------------------------------- years vs water balance
+def years_water_balance(balance_accum, dates, month, cal_start=None, cal_end=None):
+    """Accumulated water balance per year, taken at the target month.
+
+    No accumulation is done here: `balance_accum` is expected to already be the
+    n-month accumulated balance (the output of rolling_water_balance), one value
+    per month. This picks the entry whose month is the accumulation's target
+    month, so each year contributes exactly one value.
+
+    balance_accum : 1-D array of the accumulated balance (precip - ET0), mm
+    dates         : datetime-like array matching balance_accum
+    month         : target month, 1-12 (e.g. 12 for a December value)
+    cal_start     : optional 'YYYY-MM-DD' lower bound (matches cal_start in main)
+    cal_end       : optional 'YYYY-MM-DD' upper bound (matches cal_end in main)
+    Return        : pandas.Series indexed by year, sorted by year.
+    """
+    dates = pd.to_datetime(dates)
+    values = np.asarray(balance_accum, dtype=float).ravel()
+
+    if len(dates) != values.size:
+        raise ValueError("balance_accum and dates must have the same length.")
+
+    df = pd.DataFrame({"date": dates, "value": values})
+    if cal_start is not None:
+        df = df[df["date"] >= pd.Timestamp(cal_start)]
+    if cal_end is not None:
+        df = df[df["date"] <= pd.Timestamp(cal_end)]
+
+    # Keep only the accumulation ending in the target month: one value per year.
+    df = df[df["date"].dt.month == int(month)]
+    df = df.dropna(subset=["value"])
+
+    series = pd.Series(df["value"].to_numpy(),
+                       index=df["date"].dt.year.to_numpy(), name="water_balance")
+    return series.sort_index()
+
+def plot_years_on_line(water_balance, ylabel="Water balance (mm)",
+                       title="Water balance per year", output_path="water_balance_years.png",
+                       sort_by_value=True, annotate=False):
+    """Plot years along a line, ordered by their water balance value.
+
+    water_balance : pandas.Series indexed by year (or dict {year: value})
+    sort_by_value: True  -> years ordered from lowest to highest balance
+                   False -> years in chronological order
+    """
+    if isinstance(water_balance, dict):
+        water_balance = pd.Series(water_balance, dtype=float)
+    water_balance = pd.Series(water_balance, dtype=float).dropna()
+
+    if water_balance.empty:
+        raise ValueError("No finite water-balance values to plot.")
+
+    if sort_by_value:
+        water_balance = water_balance.sort_values()
+    else:
+        water_balance = water_balance.sort_index()
+
+    years = water_balance.index.astype(str)
+    values = water_balance.to_numpy()
+    x = np.arange(len(years))
+
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+
+    ax.plot(x, values, color="steelblue", linewidth=1.5, marker="o",
+            markersize=6, markerfacecolor="white", markeredgewidth=1.5, zorder=3)
+    ax.axhline(0.0, color="black", linestyle="--", linewidth=1, zorder=2)
+
+    # Colour the markers by sign of the balance
+    ax.scatter(x[values >= 0], values[values >= 0], color="seagreen", s=45, zorder=4,
+               label="surplus (>= 0)")
+    ax.scatter(x[values < 0], values[values < 0], color="firebrick", s=45, zorder=4,
+               label="deficit (< 0)")
+
+    if annotate:
+        for xi, yi in zip(x, values):
+            ax.annotate(f"{yi:.2f}", xy=(xi, yi), textcoords="offset points",
+                        xytext=(0, 8), ha="center", fontsize=7, alpha=0.85, zorder=5)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(years, rotation=90, fontsize=8)
+    ax.set_xlabel("Year (ordered by water balance)" if sort_by_value else "Year")
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    ax.grid(True, axis="y", alpha=0.3)
+    ax.legend(loc="best")
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
