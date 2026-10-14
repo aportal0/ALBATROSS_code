@@ -84,14 +84,14 @@ FC_UNITS_IN  = "K"         # "K" or "celsius"
 OB_UNITS_IN  = "K"
 OUT_UNITS    = "K"
 
-C_TO_K = 273.15
-
-
-def to_kelvin(arr, units_in):
-    """Convert a temperature array to Kelvin. K adds 273.15."""
-    if str(units_in).lower() in ("c", "celsius"):
-        return arr + C_TO_K
-    return arr
+# C_TO_K = 273.15
+# 
+# 
+# def to_kelvin(arr, units_in):
+#     """Convert a temperature array to Kelvin. K adds 273.15."""
+#     if str(units_in).lower() in ("c", "celsius"):
+#         return arr + C_TO_K
+#     return arr
 
 
 N_MEMBERS_KEEP = 25        # members common to all years (verify!)
@@ -275,9 +275,8 @@ def main():
                     continue
                 sub = sub.isel({MEMBER_DIM: slice(0, N_MEMBERS_KEEP)})
                 sub = sub.squeeze(FC_CONCAT_DIM, drop=True)
-                sub = xr.apply_ufunc(to_kelvin, sub, FC_UNITS_IN,
-                                     dask="parallelized",
-                                     output_dtypes=[np.float64])
+#                 sub = xr.apply_ufunc(to_kelvin, sub, FC_UNITS_IN,                                     dask="parallelized",
+#                                      output_dtypes=[np.float64])
                 m_parts.append(sub.transpose(FC_TIME_DIM, MEMBER_DIM,
                                              FC_LAT, FC_LON))
                 ds.close()
@@ -299,9 +298,9 @@ def main():
                          and d != OB_TIME_DIM]
                 if extra:
                     ob = ob.isel({d: 0 for d in extra}, drop=True)
-                ob = xr.apply_ufunc(to_kelvin, ob, OB_UNITS_IN,
-                                    dask="parallelized",
-                                    output_dtypes=[np.float64])
+#                ob = xr.apply_ufunc(to_kelvin, ob, OB_UNITS_IN,
+#                                    dask="parallelized",
+#                                    output_dtypes=[np.float64])
                 o_parts.append(ob.transpose(OB_TIME_DIM, OB_LAT, OB_LON))
                 ds.close()
             if not o_parts:
@@ -325,9 +324,9 @@ def main():
                     continue
                 sub = sub.isel({MEMBER_DIM: slice(0, N_MEMBERS_KEEP)})
                 sub = sub.squeeze(FC_CONCAT_DIM, drop=True)
-                sub = xr.apply_ufunc(to_kelvin, sub, FC_UNITS_IN,
-                                     dask="parallelized",
-                                     output_dtypes=[np.float64])
+#                sub = xr.apply_ufunc(to_kelvin, sub, FC_UNITS_IN,
+#                                     dask="parallelized",
+#                                     output_dtypes=[np.float64])
                 t_parts.append(sub.transpose(FC_TIME_DIM, MEMBER_DIM,
                                              FC_LAT, FC_LON))
                 ds.close()
