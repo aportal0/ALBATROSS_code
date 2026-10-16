@@ -53,7 +53,7 @@ if not LOCAL_SCRATCH or not Path(LOCAL_SCRATCH).is_dir():
 print(f"dask local_directory: {LOCAL_SCRATCH}", flush=True)
 
 # ---- WHICH TEMPERATURE: "tmin" or "tmax" ------------------------------
-TEMP_TYPE = "tmin"
+TEMP_TYPE = "tmax"
 
 REGION      = "Madagascar"
 TRAIN_YEARS = range(1993, 2022 + 1)
@@ -84,14 +84,13 @@ FC_UNITS_IN  = "K"         # "K" or "celsius"
 OB_UNITS_IN  = "K"
 OUT_UNITS    = "K"
 
-# C_TO_K = 273.15
-# 
-# 
-# def to_kelvin(arr, units_in):
-#     """Convert a temperature array to Kelvin. K adds 273.15."""
-#     if str(units_in).lower() in ("c", "celsius"):
-#         return arr + C_TO_K
-#     return arr
+C_TO_K = 273.15
+
+def to_kelvin(arr, units_in):
+    """Convert a temperature array to Kelvin. K adds 273.15."""
+    if str(units_in).lower() in ("c", "celsius"):
+        return arr + C_TO_K
+    return arr
 
 
 N_MEMBERS_KEEP = 25        # members common to all years (verify!)
@@ -115,7 +114,7 @@ QUANTILE_MIN = 0.01
 N_WORKERS  = int(os.environ.get("SLURM_CPUS_PER_TASK", 8))
 WORKER_MEM = "3GB"
 TIME_CHUNK = 40
-LAT_BLOCK  = 20            # latitude rows loaded per strip (lower if workers die)
+LAT_BLOCK  = 10            # latitude rows loaded per strip (lower if workers die)
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -275,8 +274,8 @@ def main():
                     continue
                 sub = sub.isel({MEMBER_DIM: slice(0, N_MEMBERS_KEEP)})
                 sub = sub.squeeze(FC_CONCAT_DIM, drop=True)
-#                 sub = xr.apply_ufunc(to_kelvin, sub, FC_UNITS_IN,                                     dask="parallelized",
-#                                      output_dtypes=[np.float64])
+                sub = xr.apply_ufunc(to_kelvin, sub, FC_UNITS_IN,                                     dask="parallelized",
+                                     output_dtypes=[np.float64])
                 m_parts.append(sub.transpose(FC_TIME_DIM, MEMBER_DIM,
                                              FC_LAT, FC_LON))
                 ds.close()
@@ -298,9 +297,9 @@ def main():
                          and d != OB_TIME_DIM]
                 if extra:
                     ob = ob.isel({d: 0 for d in extra}, drop=True)
-#                ob = xr.apply_ufunc(to_kelvin, ob, OB_UNITS_IN,
-#                                    dask="parallelized",
-#                                    output_dtypes=[np.float64])
+                ob = xr.apply_ufunc(to_kelvin, ob, OB_UNITS_IN,
+                                    dask="parallelized",
+                                    output_dtypes=[np.float64])
                 o_parts.append(ob.transpose(OB_TIME_DIM, OB_LAT, OB_LON))
                 ds.close()
             if not o_parts:
@@ -324,9 +323,9 @@ def main():
                     continue
                 sub = sub.isel({MEMBER_DIM: slice(0, N_MEMBERS_KEEP)})
                 sub = sub.squeeze(FC_CONCAT_DIM, drop=True)
-#                sub = xr.apply_ufunc(to_kelvin, sub, FC_UNITS_IN,
-#                                     dask="parallelized",
-#                                     output_dtypes=[np.float64])
+                sub = xr.apply_ufunc(to_kelvin, sub, FC_UNITS_IN,
+                                     dask="parallelized",
+                                     output_dtypes=[np.float64])
                 t_parts.append(sub.transpose(FC_TIME_DIM, MEMBER_DIM,
                                              FC_LAT, FC_LON))
                 ds.close()
@@ -424,7 +423,7 @@ def main():
             )
             out_path = OUT_DIR / (
                 f"{FC_VAR}_24h_mon{month:02d}_init{INIT_MONTH:02d}_"
-                f"{VERIF_YEARS[0]}-{VERIF_YEARS[1]}_{REGION}_"
+                f"{VERIF_YEARS[0]}-{VERIF_YEARS[-1]}_{REGION}_"
                 "res_ERA5-Land_qdm_ERA5-Land.nc"
             )
             out_ds = corrected.to_dataset()

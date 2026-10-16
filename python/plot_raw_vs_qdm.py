@@ -46,7 +46,7 @@ import cartopy.feature as cfeature
 # ----------------------------------------------------------------------
 # configuration -- edit these
 # ----------------------------------------------------------------------
-RAW_VAR = "mn2t24"
+RAW_VAR = "mx2t24"
 QDM_VAR = RAW_VAR + "_qdm"
 if RAW_VAR == "tp":
     NAME_VAR = "precipitation" 
@@ -59,12 +59,12 @@ elif RAW_VAR == "mx2t24":
 INIT_YEAR  = 2025          # initialization year of the RAW file
 INIT_MONTH = 10            # initialization month (October)
 
-LEAD_DAYS  = 50            # LEAD in days since the initialization:
+LEAD_DAYS  = 45            # LEAD in days since the initialization:
                            #   raw       -> forecast_period = LEAD_DAYS * 24 h
                            #   corrected -> forecast_period = LEAD_DAYS days
 
 TARGET_MONTH = 11          # corrected file to open: mon10, mon11 or mon12
-MEMBER       = 12           # ensemble member index
+MEMBER       = 15           # ensemble member index
 
 YEAR_INDEX = INIT_YEAR - 2023            # corrected file: 0, 1, 2 -> verification years
 
