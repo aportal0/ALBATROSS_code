@@ -43,6 +43,7 @@ import xarray as xr
 from dask.distributed import Client, LocalCluster
 from dask import delayed, compute
 import tempfile
+import functions_spei as fSPEI
 
 # ----------------------------------------------------------------------
 # configuration
@@ -57,7 +58,7 @@ TEMP_TYPE = "tmax"
 
 REGION      = "Madagascar"
 TRAIN_YEARS = range(1993, 2022 + 1)
-VERIF_YEARS = range(2023, 2025 + 1)
+VERIF_YEARS = range(1993, 2025 + 1)
 INIT_MONTH  = 10
 N_MONTHS    = 4
 
@@ -125,6 +126,17 @@ TARGET = [(m, (INIT_MONTH - 1 + k) // 12) for k, m in enumerate(LEAD_MONTHS)]
 # ----------------------------------------------------------------------
 # helpers
 # ----------------------------------------------------------------------
+def cut_to_country(da, name_country):
+    """
+    Cut dataarray to preset country boundaries.
+    """
+
+    box = fSPEI.boxes_african_countries(name_country)
+    da = fSPEI.subset_box(da, box)
+
+    return da
+
+
 def _init_year(fname):
     stem = fname.name if isinstance(fname, Path) else str(fname)
     return int(stem.split("init")[1][:4])
@@ -293,6 +305,7 @@ def main():
                     continue
                 ds = xr.open_dataset(f, chunks={OB_TIME_DIM: TIME_CHUNK})
                 ob = ds[OB_VAR]
+                ob = cut_to_country(ob, REGION)
                 extra = [d for d in ob.dims if d not in (OB_LAT, OB_LON)
                          and d != OB_TIME_DIM]
                 if extra:
