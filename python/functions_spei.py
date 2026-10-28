@@ -475,3 +475,257 @@ def compute_spei(balance, scale, cal_start, cal_end,
 
     return spei
 
+
+# ==========================================================================
+# I/O, regridding and ET0/SPEI pipeline helpers
+# ==========================================================================
+#
+# Added to keep the driver script thin. Nothing here changes the behaviour of
+# the ET0 / SPEI routines above; it only wraps them.
+#
+# Requires `xesmf` for the regridding helper. The import is deferred to the
+# call site so this module still imports on a machine without xesmf.
+# ==========================================================================
+
+KELVIN_OFFSET = 273.15
+
+# Visible name of each ET0 formulation -> the function above that computes it.
+ET0_FUNCS = {
+    "Hargreaves": "hargreaves",
+    "Mod-Hargreaves": "hargreaves_modified",
+}
+
+
+def resolve_paths(country, scratch_root=None):
+    """All input/output locations for the ET0 + SPEI pipeline.
+
+    `scratch_root` overrides `get_scratch_path()` for testing or for running
+    off-cluster. Raises RuntimeError when no root can be determined.
+    """
+    d = scratch_root if scratch_root is not None else get_scratch_path()
+    if d is None:
+        raise RuntimeError(
+            "get_scratch_path() returned None: this hostname is not "
+            "recognised. Pass scratch_root explicitly or run on the cluster."
+        )
+    root = f"{d}MSWEP/MSWEP_V316_test/Past/"
+    return {
+        "t2m": f"{d}ERA5-Land/t2m/monthly/",
+        "mswep": f"{root}Monthly/",
+        "et0": f"{d}ERA5-Land/ET0/monthly/",
+        "precip": f"{root}Monthly/regridded_ERA5-Land/",
+        "spei": f"{d}ERA5-Land/SPEI/monthly/",
+        "weights": f"{root}Daily/regridded_ERA5-Land/"
+                   f"weights_mswep_to_era5land_{country}.nc",
+        "mask": f"{d}ERA5-Land/land_mask_ERA5-Land.nc",
+    }
+
+
+def to_celsius(da, sensor):
+    """Convert a temperature field to degC if it looks like Kelvin.
+
+    Checks the `units` attribute first; samples a single value only when the
+    attribute is missing, and only that one value (not the whole grid).
+    """
+    units = (sensor.attrs.get("units") or "").strip().lower()
+    if units in {"k", "kelvin", "degk", "degrees_k"}:
+        return da - KELVIN_OFFSET
+    if units and ("c" in units or "celsius" in units):
+        return da
+    probe = float(np.atleast_1d(sensor.isel({sensor.dims[0]: 0}).values)[0])
+    return da - KELVIN_OFFSET if probe > 100.0 else da
+
+
+def standardize_dims(ds):
+    """Rename ERA5-Land's verbose dims to the short names used downstream.
+
+    `standardize_latlon` above handles lat/lon only; this also maps
+    `valid_time` to `time`.
+    """
+    rename = {}
+    for old, new in (("valid_time", "time"),
+                     ("latitude", "lat"),
+                     ("longitude", "lon")):
+        if old in ds.dims or old in ds.coords:
+            rename[old] = new
+    return ds.rename(rename) if rename else ds
+
+
+def grid_shape(da):
+    """(n_lat, n_lon) for either naming convention."""
+    lat = "latitude" if "latitude" in da.dims else "lat"
+    lon = "longitude" if "longitude" in da.dims else "lon"
+    return da.sizes[lat], da.sizes[lon]
+
+
+def get_regridder(src, target, weights_path=None, force=False):
+    """Build a conservative regridder, caching weights on disk.
+
+    xesmf reuses cached weights via `filename=` + `reuse_weights=True`, and
+    raises on a grid mismatch rather than silently mis-regridding.
+    """
+    try:
+        import xesmf as xe
+    except ImportError as exc:  # pragma: no cover
+        raise RuntimeError(
+            "xesmf is required for the regridding stage but is not importable."
+        ) from exc
+
+    reuse = bool(weights_path) and os.path.exists(weights_path) and not force
+    if reuse:
+        return xe.Regridder(src, target, method="conservative", periodic=False,
+                            filename=weights_path, reuse_weights=True)
+
+    regridder = xe.Regridder(src, target, method="conservative",
+                             periodic=False, reuse_weights=False)
+    if weights_path:
+        os.makedirs(os.path.dirname(weights_path), exist_ok=True)
+        regridder.to_netcdf(weights_path)
+    return regridder
+
+
+def build_et0_and_precip(paths, country, years, methods,
+                         force_regrid=False, verbose=True):
+    """Loop the years; return (et0, precip) as multi-year datasets.
+
+    ET0 is returned in mm/day (as the functions above produce it); precip as
+    mm/month. Dims are time/lat/lon throughout.
+
+    Precip is regridded to the ERA5-Land grid of the first year, and the
+    regridder is rebuilt whenever a year's source grid differs, rather than
+    silently applying mismatched weights.
+    """
+    box = boxes_african_countries(country)
+    y0, y1 = years
+    years_iter = range(y0, y1 + 1)
+
+    with xr.open_dataset(f"{paths['t2m']}t2m_maximum_monthly_{y0}.nc",
+                         chunks={"valid_time": 12}) as ds_t:
+        target = standardize_dims(
+            subset_box(ds_t["t2m"].rename({"valid_time": "time"}), box)
+        )
+
+    regridder = None
+    regridder_shape = None
+
+    et0_parts = {m: [] for m in methods}
+    precip_parts = []
+
+    for year in years_iter:
+        with xr.open_dataset(f"{paths['t2m']}t2m_minimum_monthly_{year}.nc",
+                             chunks={"valid_time": 12}) as ds_tmin, \
+             xr.open_dataset(f"{paths['t2m']}t2m_maximum_monthly_{year}.nc",
+                             chunks={"valid_time": 12}) as ds_tmax, \
+             xr.open_dataset(f"{paths['mswep']}{year}.nc",
+                             chunks={"time": 12}) as ds_p:
+
+            tmin = to_celsius(ds_tmin["t2m"], ds_tmin["t2m"])
+            tmax = to_celsius(ds_tmax["t2m"], ds_tmin["t2m"])  # same units
+            precip = ds_p["precipitation"]
+
+            tmin_c = standardize_latlon(subset_box(
+                tmin.rename({"valid_time": "time"}), box))
+            tmax_c = standardize_latlon(subset_box(
+                tmax.rename({"valid_time": "time"}), box))
+
+            src_shape = grid_shape(precip)
+            if regridder is None or src_shape != regridder_shape:
+                regridder = get_regridder(precip, target, paths.get("weights"),
+                                          force_regrid)
+                regridder_shape = src_shape
+
+            precip_c = (regridder(precip)
+                        .resample(time="1MS").sum()
+                        .rename("precipitation"))
+            precip_c = standardize_latlon(precip_c)
+            precip_c.attrs["units"] = "mm/month"
+
+            tmin_m = tmin_c.resample(time="1MS").mean()
+            tmax_m = tmax_c.resample(time="1MS").mean()
+
+            # mm/day equivalent of the monthly total: hargreaves_modified
+            # needs it for its 0.0123 * P correction. Feeding the monthly
+            # total instead biases ET0 (about 13% for a tropical month).
+            n_days = xr.DataArray(tmin_m["time"].dt.days_in_month,
+                                  coords={"time": tmin_m["time"]}, dims=["time"])
+            precip_day = (precip_c / n_days).transpose("time", "lat", "lon")
+
+            ds_monthly = xr.Dataset({"tmin": tmin_m, "tmax": tmax_m,
+                                     "precip": precip_day})
+            Ra = _ra_dataarray(ds_monthly)
+
+            for method in methods:
+                fn = globals()[ET0_FUNCS[method]]
+                et0_parts[method].append(fn(ds_monthly, Ra=Ra))
+
+            precip_parts.append(precip_c)
+            if verbose:
+                print(f"[ET0] {year} done", flush=True)
+
+    del regridder
+
+    et0 = xr.Dataset({m: xr.concat(parts, dim="time")
+                      for m, parts in et0_parts.items()})
+    for m in methods:
+        et0[m].attrs["units"] = "mm/day"
+
+    precip_ds = xr.Dataset(
+        {"precipitation": xr.concat(precip_parts, dim="time")})
+    precip_ds["precipitation"].attrs["units"] = "mm/month"
+    return et0, precip_ds
+
+
+def land_fraction(paths, country, ref):
+    """Land-sea mask interpolated onto the grid of `ref`."""
+    with xr.open_dataset(paths["mask"]) as ds_mask:
+        lsm = standardize_latlon(
+            subset_box(ds_mask["lsm"], boxes_african_countries(country)))
+        lsm = lsm.load()  # close the file before interpolating
+    return lsm.interp(lat=ref.lat, lon=ref.lon, method="nearest")
+
+
+def water_balance(precip, et0_daily, lsm=None):
+    """P - ET0 in mm/month.
+
+    ET0 is mm/day, so it is multiplied by days-in-month; precip is already a
+    monthly total. With `lsm` given, the result is masked to land.
+    """
+    days = xr.DataArray(et0_daily["time"].dt.days_in_month,
+                        coords={"time": et0_daily["time"]}, dims=["time"])
+    pet = (et0_daily * days).rename("pet")
+    pet.attrs["units"] = "mm/month"
+
+    precip, pet = xr.align(precip.rename("precip"), pet, join="inner")
+    balance = (precip - pet).rename("balance")
+    balance.attrs["units"] = "mm/month"
+    balance.attrs["long_name"] = "climatic water balance (P - ET0)"
+
+    if lsm is not None:
+        balance = balance.where(lsm > 0.5)
+    return balance
+
+
+def write_spei(balance, out_dir, method, years, scales, country,
+               verbose=True):
+    """Compute SPEI at each scale and write it, plus the balance, to `out_dir`.
+
+    Returns the dict of {scale: surname} written.
+    """
+    y0, y1 = years
+    cal_start, cal_end = f"{y0}-01-01", f"{y1}-12-31"
+    os.makedirs(out_dir, exist_ok=True)
+    written = {}
+
+    for scale in scales:
+        spei = compute_spei(balance, scale=scale,
+                            cal_start=cal_start, cal_end=cal_end)
+        name = f"SPEI_{method}_{scale}m_{y0}-{y1}_{country}.nc"
+        spei.to_netcdf(os.path.join(out_dir, name))
+        written[scale] = name
+        if verbose:
+            print(f"[SPEI] saved scale {scale}", flush=True)
+
+    balance.to_netcdf(os.path.join(
+        out_dir, f"water-balance_{method}_monthly_{y0}-{y1}_{country}.nc"))
+    return written
+
