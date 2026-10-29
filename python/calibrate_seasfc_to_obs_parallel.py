@@ -66,7 +66,7 @@ except ImportError:  # pragma: no cover
 #   "pr"   : daily precipitation (multiplicative QDM, dry-day censoring)
 #   "tmax" : daily maximum temperature (additive QDM, no censoring)
 #   "tmin" : daily minimum temperature (additive QDM, no censoring)
-VARIABLE = "tmax"
+VARIABLE = "pr"
 
 LOCAL_SCRATCH = os.environ.get("TMPDIR")
 if not LOCAL_SCRATCH or not Path(LOCAL_SCRATCH).is_dir():
@@ -436,6 +436,7 @@ def main():
 
             # ---- 1. model pool: all years, all members, month, spin-up cut --
             m_parts = []
+            m_years = []
             for y in TRAIN_YEARS:
                 f = fc_path(y)
                 if not f.exists():
@@ -454,17 +455,20 @@ def main():
                                      output_dtypes=[np.float64])
                 m_parts.append(sub.transpose(FC_TIME_DIM, MEMBER_DIM,
                                              SPATIAL_LAT_FC, SPATIAL_LON_FC))
+                m_years.append(int(y))
                 ds.close()
             if not m_parts:
                 print("  no model training data -> skip", flush=True)
                 continue
-            m_da = xr.concat(m_parts, dim="year", join="override")
+            m_da = xr.concat(m_parts, dim="init_year", join="override")
+            m_da = m_da.assign_coords(init_year=m_years)
             # hourly precip accumulations can go slightly negative
             m_da = m_da.clip(min=0.0) if VARIABLE == "pr" else m_da
             print(f"  model pool {dict(m_da.sizes)}", flush=True)
 
             # ---- 2. reference pool: same month, all years --------------------
             o_parts = []
+            o_years = []
             for y in TRAIN_YEARS:
                 f = ob_path(y, yoff, month)
                 if not f.exists():
@@ -481,16 +485,19 @@ def main():
                                     dask="parallelized",
                                     output_dtypes=[np.float64])
                 o_parts.append(ob.transpose(OB_TIME_DIM, OB_LAT, OB_LON))
+                o_years.append(int(y))
                 ds.close()
             if not o_parts:
                 print("  no reference training data -> skip", flush=True)
                 continue
-            o_da = xr.concat(o_parts, dim="year", join="override")
+            o_da = xr.concat(o_parts, dim="init_year", join="override")
+            o_da = o_da.assign_coords(init_year=o_years)
             o_da = o_da.clip(min=0.0) if VARIABLE == "pr" else o_da
             print(f"  reference pool {dict(o_da.sizes)}", flush=True)
 
             # ---- 3. target: verification years -------------------------------
             t_parts = []
+            t_years = []
             for y in VERIF_YEARS:
                 f = fc_path(y)
                 if not f.exists():
@@ -509,11 +516,13 @@ def main():
                                      output_dtypes=[np.float64])
                 t_parts.append(sub.transpose(FC_TIME_DIM, MEMBER_DIM,
                                              SPATIAL_LAT_FC, SPATIAL_LON_FC))
+                t_years.append(int(y))
                 ds.close()
             if not t_parts:
                 print("  no verification data -> skip", flush=True)
                 continue
-            t_da = xr.concat(t_parts, dim="year", join="override")
+            t_da = xr.concat(t_parts, dim="init_year", join="override")
+            t_da = t_da.assign_coords(init_year=t_years)
             t_da = t_da.clip(min=0.0) if VARIABLE == "pr" else t_da
             print(f"  target     {dict(t_da.sizes)}", flush=True)
 
@@ -555,7 +564,7 @@ def main():
             # ---- 5. point-by-point QDM, in latitude strips -------------------
             n_lat = m_c.sizes[SPATIAL_LAT_FC]
             n_lon = m_c.sizes[SPATIAL_LON_FC]
-            n_year = t_c.sizes["year"]
+            n_year = t_c.sizes["init_year"]
             n_time = t_c.sizes[FC_TIME_DIM]
             n_mem  = t_c.sizes[MEMBER_DIM]
             print(f"  grid {n_lat} x {n_lon}; target {n_year} x {n_time} x {n_mem}",
@@ -585,14 +594,14 @@ def main():
 
                 # materialise ONE strip (model, reference, target) as numpy
                 m_blk = np.asarray(
-                    m_c.isel(fc_sl).transpose("year", FC_TIME_DIM, MEMBER_DIM,
+                    m_c.isel(fc_sl).transpose("init_year", FC_TIME_DIM, MEMBER_DIM,
                                                SPATIAL_LAT_FC,
                                                SPATIAL_LON_FC).values)
                 o_blk = np.asarray(
-                    o_c.isel(ob_sl).transpose("year", OB_TIME_DIM,
+                    o_c.isel(ob_sl).transpose("init_year", OB_TIME_DIM,
                                               OB_LAT, OB_LON).values)
                 t_blk = np.asarray(
-                    t_c.isel(fc_sl).transpose("year", FC_TIME_DIM, MEMBER_DIM,
+                    t_c.isel(fc_sl).transpose("init_year", FC_TIME_DIM, MEMBER_DIM,
                                                SPATIAL_LAT_FC,
                                                SPATIAL_LON_FC).values)
 
@@ -627,10 +636,10 @@ def main():
             # ---- 6. back to xarray and write ---------------------------------
             corrected = xr.DataArray(
                 corrected_np.astype("float32"),
-                dims=("year", FC_TIME_DIM, MEMBER_DIM,
+                dims=("init_year", FC_TIME_DIM, MEMBER_DIM,
                       SPATIAL_LAT_FC, SPATIAL_LON_FC),
                 coords={
-                    "year": t_da["year"].values,
+                    "init_year": t_da["init_year"].values,
                     FC_TIME_DIM: t_da[FC_TIME_DIM].values,
                     MEMBER_DIM: t_da[MEMBER_DIM].values,
                     SPATIAL_LAT_FC: t_da[SPATIAL_LAT_FC].values,
