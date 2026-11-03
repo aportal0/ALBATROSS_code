@@ -17,7 +17,7 @@ from __future__ import annotations
 import os
 import sys
 
-import functions_spei as fSPEI
+import functions_spei_driver as fSPEI
 
 
 # --------------------------------------------------------------------------
@@ -61,7 +61,7 @@ FORECAST_WINDOWS = [(1,), (1, 2, 3)]
 
 
 def main() -> int:
-    paths = fSPEI.resolve_paths(COUNTRY)
+    paths = fSPEI.resolve_paths(COUNTRY, FORECAST_INIT_MONTH)
     y0, y1 = YEARS
 
     methods = (["Hargreaves", "Mod-Hargreaves"] if METHOD == "both"

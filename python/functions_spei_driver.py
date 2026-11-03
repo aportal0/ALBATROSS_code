@@ -494,9 +494,13 @@ ET0_FUNCS = {
     "Hargreaves": "hargreaves",
     "Mod-Hargreaves": "hargreaves_modified",
 }
+FORECAST_VARS = {
+        "tmin": ["mn2t24","ERA5-Land"],
+        "tmax": ["mx2t24","ERA5-Land"],
+        "precip": ["pr","MSWEP"]}
 
 
-def resolve_paths(country, scratch_root=None):
+def resolve_paths(country, mon_init, scratch_root=None):
     """All input/output locations for the ET0 + SPEI pipeline.
 
     `scratch_root` overrides `get_scratch_path()` for testing or for running
@@ -518,6 +522,8 @@ def resolve_paths(country, scratch_root=None):
         "weights": f"{root}Daily/regridded_ERA5-Land/"
                    f"weights_mswep_to_era5land_{country}.nc",
         "mask": f"{d}ERA5-Land/land_mask_ERA5-Land.nc",
+        "spei_forecast": f"{d}C3S_seasonal/ecmwf51/24h/init_{mon_init:02d}/spei/",
+        "forecast_root": f"{d}C3S_seasonal/ecmwf51/24h/init_{mon_init:02d}/",
     }
 
 
@@ -709,6 +715,7 @@ def water_balance(precip, et0_daily, lsm=None):
 
 
 def write_spei(balance, out_dir, method, years, scales, country,
+    ds = ds.rename({"year": "year_init"})
                verbose=True):
     """Compute SPEI at each scale and write it, plus the balance, to `out_dir`.
 
@@ -735,11 +742,11 @@ def write_spei(balance, out_dir, method, years, scales, country,
 
 def forecast_monthly_file(root, kind, init_month, country, years):
     """Path to the merged monthly forecast file from monthly_mean.py."""
-    var, source, calib = FORECAST_VARS[kind]
+    var, calib = FORECAST_VARS[kind]
     y0, y1 = years
     name = (f"{var}_monthly_lead1-3_init{init_month:02d}_{y0}-{y1}_"
             f"{country}_res_ERA5-Land_qdm_{calib}.nc")
-    return f"{root}ecmwf51/24h/init_{init_month}/{var}/{source}/{name}"
+    return f"{root}ecmwf51/24h/init_{init_month}/{var}/calibrated_{calib}/{name}"
 
 
 def open_monthly_forecast(root, kind, init_month, country, years,
