@@ -497,10 +497,10 @@ ET0_FUNCS = {
 FORECAST_VARS = {
         "tmin": ["mn2t24","ERA5-Land"],
         "tmax": ["mx2t24","ERA5-Land"],
-        "precip": ["pr","MSWEP"]}
+        "precip": ["tp","MSWEP"]}
 
 
-def resolve_paths(country, mon_init, scratch_root=None):
+def resolve_paths(country, scratch_root=None):
     """All input/output locations for the ET0 + SPEI pipeline.
 
     `scratch_root` overrides `get_scratch_path()` for testing or for running
@@ -522,8 +522,7 @@ def resolve_paths(country, mon_init, scratch_root=None):
         "weights": f"{root}Daily/regridded_ERA5-Land/"
                    f"weights_mswep_to_era5land_{country}.nc",
         "mask": f"{d}ERA5-Land/land_mask_ERA5-Land.nc",
-        "spei_forecast": f"{d}C3S_seasonal/ecmwf51/24h/init_{mon_init:02d}/spei/",
-        "forecast_root": f"{d}C3S_seasonal/ecmwf51/24h/init_{mon_init:02d}/",
+        "forecast_root": f"{d}C3S_seasonal/ecmwf51/24h/",
     }
 
 
@@ -715,7 +714,6 @@ def water_balance(precip, et0_daily, lsm=None):
 
 
 def write_spei(balance, out_dir, method, years, scales, country,
-    ds = ds.rename({"year": "year_init"})
                verbose=True):
     """Compute SPEI at each scale and write it, plus the balance, to `out_dir`.
 
@@ -746,14 +744,14 @@ def forecast_monthly_file(root, kind, init_month, country, years):
     y0, y1 = years
     name = (f"{var}_monthly_lead1-3_init{init_month:02d}_{y0}-{y1}_"
             f"{country}_res_ERA5-Land_qdm_{calib}.nc")
-    return f"{root}ecmwf51/24h/init_{init_month}/{var}/calibrated_{calib}/{name}"
+    return f"{root}/init_{init_month}/{var}/calibrated_{calib}/{name}"
 
 
 def open_monthly_forecast(root, kind, init_month, country, years,
                           months=None):
     """Open the merged monthly forecast file for one init month.
 
-    Returns a DataArray with dims (lead, member, init_year, lat, lon). Raises
+    Returns a DataArray with dims (lead, number, init_year, lat, lon). Raises
     FileNotFoundError naming the init month when the file is absent.
     """
     var = FORECAST_VARS[kind][0]
@@ -777,12 +775,18 @@ def open_monthly_forecast(root, kind, init_month, country, years,
         da = ds[array].load()
         units = da.attrs.get("units")
 
-    # `init_year` is the integer hindcast year, `number` the member.
+    # `init_year` is the integer hindcast year, `number` the ensemble member.
+    # `number` is kept as-is: it is the name in the source files, so keeping
+    # it means the SPEI output carries the same coordinate as the input.
     if "init_year" not in da.dims and "init_year" in da.coords:
         da = da.swap_dims({da["init_year"].dims[0]: "init_year"})
-    da = da.rename({"number": "member"}) if "number" in da.dims else da
+    if "number" not in da.dims:
+        raise ValueError(
+            f"{os.path.basename(path)} has no 'number' dimension; "
+            f"found {list(da.dims)}"
+        )
     da.attrs["units"] = units
-    return da.transpose("lead", "member", "init_year", "lat", "lon")
+    return da.transpose("lead", "number", "init_year", "lat", "lon")
 
 
 def resolve_target_months(init_month, n=3):
@@ -794,9 +798,9 @@ def forecast_balance_monthly(root, country, init_month, method,
                              years=(1993, 2025), months=None,
                              drop_first_month=False, lsm=None,
                              verbose=True):
-    """Forecast water balance P - ET0, per member, from monthly forecasts.
+    """Forecast water balance P - ET0, per ensemble member, from monthly forecasts.
 
-    Returns a DataArray with dims (lead, member, init_year, lat, lon), in
+    Returns a DataArray with dims (lead, number, init_year, lat, lon), in
     mm/month. Lead 1 is kept by default: the ~10-day deficit in the first
     month is accepted rather than dropped, so a 3-lead window really is three
     months.
@@ -847,11 +851,7 @@ def forecast_balance_monthly(root, country, init_month, method,
 
     ds = xr.Dataset({"tmin": mn, "tmax": mx, "precip": precip_day})
 
-    # Ra needs a (time, lat) style array. Build one keyed on (lead, year, lat)
-    # from the target month of each lead, then broadcast over member.
     Ra = _ra_lead_year(ds, lead_month)
-    Ra = Ra.transpose(*[d for d in ds["tmin"].dims if d != "member"])
-    Ra = Ra.expand_dims(member=ds["member"]).transpose(*ds["tmin"].dims)
 
     if method == "Hargreaves":
         et0 = hargreaves(ds, Ra=Ra)
@@ -939,9 +939,9 @@ def _spei_window_worker(args):
 
 def compute_spei_forecast(balance, scale=None, lead_index=None,
                           min_valid=8, n_workers=None, chunk_size=200):
-    """SPEI for a forecast window, per member.
+    """SPEI for a forecast window, per ensemble member.
 
-    `balance` carries dims (lead, member, init_year, lat, lon). The window is
+    `balance` carries dims (lead, number, init_year, lat, lon). The window is
     accumulated over `lead_index` (default: all leads present).
 
     This is deliberately not `compute_spei`. A forecast window is not a
@@ -949,7 +949,7 @@ def compute_spei_forecast(balance, scale=None, lead_index=None,
     accumulation runs over `lead`, the only contiguous axis.
 
     Returns a DataArray named 'SPEI' with dims
-    (member, init_year, lat, lon). The member axis is preserved.
+    (number, init_year, lat, lon). The `number` axis is preserved.
     """
     if "lead" not in balance.dims:
         raise ValueError("balance has no 'lead' dimension")
@@ -970,19 +970,22 @@ def compute_spei_forecast(balance, scale=None, lead_index=None,
 
     accum = balance.sel(lead=lead_index).sum("lead")
 
-    mdim = _member_dim(accum)
-    if mdim is None:
-        accum = accum.expand_dims(member=[0])
-        mdim = "member"
+    if "number" not in accum.dims:
+        raise ValueError(
+            "forecast balance has no 'number' dimension; "
+            f"found {list(accum.dims)}"
+        )
+    mdim = "number"
 
-    # (member, init_year, lat, lon) -> (member, init_year, point). The member
+    # (number, init_year, lat, lon) -> (number, init_year, point). The
     # axis stays in the array rather than being merged into `point`: each
-    # member is fitted and transformed independently, so a member keeps its
-    # own SPEI series. Merging members into `point` would fit and transform
-    # them independently too, but then lose the ability to tell them apart in
-    # the output.
-    arr = (accum.transpose(mdim, "init_year", "lat", "lon")
-           .stack(point=("lat", "lon")).values)
+    # `number` dimension stays in the array: each member is fitted and
+    # transformed independently, so each keeps its own SPEI series. Merging
+    # members into `point` would do the same but lose the ability to tell
+    # them apart in the output.
+    stacked = accum.transpose(mdim, "init_year", "lat", "lon").stack(
+            point=("lat", "lon"))
+    arr = stacked.values
 
     # Valid where any member has data at that point.
     valid = np.isfinite(arr).any(axis=(0, 1))
@@ -999,8 +1002,8 @@ def compute_spei_forecast(balance, scale=None, lead_index=None,
             for k in range(n_pt):
                 out_v[mi, :, k] = _spei_window_1d(arr_v[mi, :, k], min_valid)
     else:
-        # One task per (member, point); `_spei_window_worker` returns the
-        # flat index into (member, point).
+        # One task per (number, point); `_spei_window_worker` returns the
+        # flat index into (number, point).
         tasks = [(mi * n_pt + k, arr_v[mi, :, k], min_valid)
                  for mi in range(n_mem) for k in range(n_pt)]
         with Pool(processes=n_workers) as pool:
@@ -1014,9 +1017,9 @@ def compute_spei_forecast(balance, scale=None, lead_index=None,
 
     spei = xr.DataArray(
         out,
-        dims=("member", "init_year", "point"),
-        coords={"member": accum[mdim], "init_year": accum["init_year"],
-                "point": accum["point"]},
+        dims=("number", "init_year", "point"),
+        coords={"number": accum[mdim], "init_year": accum["init_year"],
+                "point": stacked["point"]},
         name="SPEI",
     ).unstack("point")
 
@@ -1035,8 +1038,8 @@ def write_spei_forecast(balance, out_dir, method, init_month, country, years,
     spei = compute_spei_forecast(balance, scale=scale, lead_index=lead_index)
     y0, y1 = years
     leads = "".join(str(l) for l in spei.attrs["leads"])
-    name = (f"SPEI_forecast_{method}_leads{leads}_init{init_month:02d}"
-            f"_{y0}-{y1}_{country}.nc")
+    name = (f"SPEI_{method}_lead{leads}_init{init_month:02d}"
+            f"_{y0}-{y1}_{country}_res_ERA5-Land_qdm_ERA5-Land_MSWEP.nc")
     spei.to_netcdf(os.path.join(out_dir, name))
     if verbose:
         print(f"[SPEI-fcst] saved {name}", flush=True)
@@ -1052,12 +1055,12 @@ def run_forecast_spei(paths, country, init_month, method,
     lead-1-to-3 SPEI. The forecast balance is built ONCE and reused for every
     window, so the file reads and the ET0 are not repeated.
 
-    The member axis is preserved throughout: each of the 25 members is fitted
+    The `number` axis is preserved throughout: each of the 25 members is fitted
     and transformed independently and keeps its own SPEI series.
 
     Returns {window_tuple: filename}.
     """
-    out_dir = paths["spei_forecast"]
+    out_dir = paths["forecast_root"] + f"init_{init_month:02d}/spei/"
     os.makedirs(out_dir, exist_ok=True)
 
     balance = forecast_balance_monthly(

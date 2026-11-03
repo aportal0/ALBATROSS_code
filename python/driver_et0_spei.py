@@ -61,7 +61,7 @@ FORECAST_WINDOWS = [(1,), (1, 2, 3)]
 
 
 def main() -> int:
-    paths = fSPEI.resolve_paths(COUNTRY, FORECAST_INIT_MONTH)
+    paths = fSPEI.resolve_paths(COUNTRY)
     y0, y1 = YEARS
 
     methods = (["Hargreaves", "Mod-Hargreaves"] if METHOD == "both"
