@@ -1032,15 +1032,43 @@ def compute_spei_forecast(balance, scale=None, lead_index=None,
 
 
 def write_spei_forecast(balance, out_dir, method, init_month, country, years,
-                        scale=None, lead_index=None, verbose=True):
-    """Compute and write the forecast SPEI for one init month and window."""
+                        lead_index=None, verbose=True):
+    """Compute the forecast SPEI for one init month and window.
+
+    The SPEI is written alongside the forecast monthly water balance it came
+    from, so the two sit in the same folder and share the init month and the
+    lead window in their names.
+    """
     os.makedirs(out_dir, exist_ok=True)
-    spei = compute_spei_forecast(balance, scale=scale, lead_index=lead_index)
+
+    spei = compute_spei_forecast(balance, lead_index=lead_index)
+
     y0, y1 = years
     leads = "".join(str(l) for l in spei.attrs["leads"])
-    name = (f"SPEI_{method}_lead{leads}_init{init_month:02d}"
-            f"_{y0}-{y1}_{country}_res_ERA5-Land_qdm_ERA5-Land_MSWEP.nc")
-    spei.to_netcdf(os.path.join(out_dir, name))
+    stem = f"{method}_lead{leads}_init{init_month:02d}_{y0}-{y1}_{country}"
+
+    spei_name = (f"SPEI_{stem}"
+                 f"_res_ERA5-Land_qdm_ERA5-Land_MSWEP.nc")
+    spei.to_netcdf(os.path.join(out_dir, spei_name))
+    if verbose:
+        print(f"[SPEI-fcst] saved {spei_name}", flush=True)
+
+    return spei_name
+
+
+def write_forecast_balance(balance, out_dir, method, init_month, country,
+                           years=(1993, 2025), verbose=True):
+    """Write the full monthly forecast water balance for one init month.
+
+    Dims (lead, number, init_year, lat, lon), mm/month -- the whole lead
+    series in one file, as the monthly input forecasts are stored, rather
+    than a per-window slice. Written once per init month and method.
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    y0, y1 = years
+    name = (f"water-balance_{method}_monthly_lead1-3_init{init_month:02d}"
+            f"_{y0}-{y1}_{country}.nc")
+    balance.to_netcdf(os.path.join(out_dir, name))
     if verbose:
         print(f"[SPEI-fcst] saved {name}", flush=True)
     return name
@@ -1067,7 +1095,12 @@ def run_forecast_spei(paths, country, init_month, method,
         paths["forecast_root"], country, init_month, method,
         years=years, lsm=lsm, verbose=verbose)
 
-    written = {}
+    # The full monthly balance, written once for the init month rather than
+    # once per window.
+    written = {"balance": write_forecast_balance(
+        balance, out_dir, method, init_month, country,
+        years=years, verbose=verbose)}
+
     for window in windows:
         written[window] = write_spei_forecast(
             balance, out_dir, method, init_month, country,

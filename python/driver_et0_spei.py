@@ -34,11 +34,11 @@ SCALES = [1, 3, 6, 12]
 # "Hargreaves", "Mod-Hargreaves", or "both" (runs the SPEI chain twice).
 METHOD = "both"
 
-FORCE_REGRID = False     # ignore cached regridding weights
+FORCE_REGRID = False     # True to ignore cached regridding weights
 
 # --- which branches to run -------------------------------------------------
-RUN_OBS = False           # observations: ERA5-Land + MSWEP -> SPEI
-RUN_FORECAST = True     # calibrated seasonal forecasts -> forecast SPEI
+RUN_OBS = True           # observations: ERA5-Land + MSWEP -> SPEI
+RUN_FORECAST = False     # calibrated seasonal forecasts -> forecast SPEI
 
 # --- forecast branch -------------------------------------------------------
 # The init month whose seasonal run is used, 1..12.
