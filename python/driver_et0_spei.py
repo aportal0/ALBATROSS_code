@@ -29,7 +29,7 @@ import functions_spei_driver as fSPEI
 # YEARS is an inclusive (start, end) pair, used for the observation branch.
 COUNTRY = "Madagascar"
 YEARS = (1993, 2024)
-SCALES = [1, 3, 6, 12]
+SCALES = [12]
 
 # "Hargreaves", "Mod-Hargreaves", or "both" (runs the SPEI chain twice).
 METHOD = "both"
@@ -37,8 +37,8 @@ METHOD = "both"
 FORCE_REGRID = False     # True to ignore cached regridding weights
 
 # --- which branches to run -------------------------------------------------
-RUN_OBS = True           # observations: ERA5-Land + MSWEP -> SPEI
-RUN_FORECAST = False     # calibrated seasonal forecasts -> forecast SPEI
+RUN_OBS = False           # observations: ERA5-Land + MSWEP -> SPEI
+RUN_FORECAST = True     # calibrated seasonal forecasts -> forecast SPEI
 
 # --- forecast branch -------------------------------------------------------
 # The init month whose seasonal run is used, 1..12.
@@ -93,6 +93,7 @@ def main() -> int:
 
         precip["precipitation"].to_netcdf(os.path.join(
             paths["precip"], f"precip_monthly_{y0}-{y1}_{COUNTRY}.nc"))
+        print(f"[precip] wrote {method} multi-year file", flush=True)
 
     # -------------------------------------------------------------- forecast
     if RUN_FORECAST:

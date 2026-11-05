@@ -21,16 +21,16 @@ import xarray as xr
 month_init = 10                     # target init month, 1..12
 country    = "Madagascar"           # region tag used in the filename
 year_range = [1993, 2025]           # [y0, yN] inclusive
-variable   = "mx2t24"                   # variable name ("mn2t24", "mx2t24", "tp"); also names the data folder
+variable   = "tp"                   # variable name ("mn2t24", "mx2t24", "tp"); also names the data folder
 # ---------------------------------------------------------------------------
 
 VAR = variable + "_qdm"             # array name inside the file
 INIT_TAG = f"init{month_init}"      # init tag as it appears in the filenames
 
-QDM_REF = {
-    "mn2t24": "ERA5-Land",
-    "mx2t24": "ERA5-Land",
-    "tp":     "MSWEP",
+VAR_PAR = {
+    "mn2t24": ["ERA5-Land", "mean"],
+    "mx2t24": ["ERA5-Land", "mean"],
+    "tp":     ["MSWEP", "sum"],
 }
 
 
@@ -45,18 +45,28 @@ def days_in_month(month, year):
 
 
 def build_root(month_init):
-    ref = QDM_REF[variable]
+    calibr = VAR_PAR[variable][0]
     return os.path.join(
         f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_{month_init}",
         variable,
-        f"calibrated_{ref}"
+        f"calibrated_{calibr}"
     )
+
+def build_outdir(month_init):
+    calibr = VAR_PAR[variable][0]
+    outpath = os.path.join(
+            f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/monthly/init_{month_init}",
+            variable,
+            )
+    os.makedirs(outpath, exist_ok=True)
+    return outpath
+
 
 
 def build_path(month, country, y0, y1):
-    ref = QDM_REF[variable]
+    calibr = VAR_PAR[variable][0]
     name = (f"{variable}_24h_mon{month:02d}_{INIT_TAG}_{y0}-{y1}_"
-            f"{country}_res_ERA5-Land_qdm_{ref}.nc")
+            f"{country}_res_ERA5-Land_qdm_{calibr}.nc")
     return os.path.join(build_root(month_init), name)
 
 
@@ -71,8 +81,12 @@ def reduce_one(path, month,  month_offset):
     ds = xr.open_dataset(path)
     if "forecast_period" in ds.dims:
         ds = ds.rename({"forecast_period": "days"})
-
-    out = ds[VAR].mean("days", skipna=True)
+    
+    how = VAR_PAR[variable][1]
+    if how == "sum":
+        out = ds[VAR].sum("days", skipna=True)
+    elif how == "mean":
+        out = ds[VAR].mean("days", skipna=True)
 
     out = out.expand_dims(lead=[month_offset])
     out.attrs["target_month"] = month
@@ -102,8 +116,9 @@ def main():
 
     out = merged.rename(VAR)
     out.name = VAR
+    stat_operation = VAR_PAR[variable][1] 
     out.attrs.update({
-        "long_name": (f"monthly mean of {VAR}, init month {month_init}, "
+        "long_name": (f"monthly {stat_operation} of {VAR}, init month {month_init}, "
                       f"target months {months}"),
         "units": merged.attrs.get("units", "K"),
         "variable": variable,
@@ -115,9 +130,9 @@ def main():
     })
     
     out_path = os.path.join(
-        build_root(month_init),
+        build_outdir(month_init),
         f"{variable}_monthly_lead1-3_init{month_init:02d}_{y0}-{y1}"
-        f"_{country}_res_ERA5-Land_qdm_{QDM_REF[variable]}.nc",
+        f"_{country}_res_ERA5-Land_qdm_{VAR_PAR[variable][0]}.nc",
     )
     out.to_dataset().to_netcdf(out_path)
     print("Monthly file saved as:\n", out_path)

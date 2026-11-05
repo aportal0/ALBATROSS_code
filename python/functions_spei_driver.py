@@ -522,7 +522,7 @@ def resolve_paths(country, scratch_root=None):
         "weights": f"{root}Daily/regridded_ERA5-Land/"
                    f"weights_mswep_to_era5land_{country}.nc",
         "mask": f"{d}ERA5-Land/land_mask_ERA5-Land.nc",
-        "forecast_root": f"{d}C3S_seasonal/ecmwf51/24h/",
+        "forecast_root": f"{d}C3S_seasonal/ecmwf51/monthly/",
     }
 
 
@@ -1088,7 +1088,7 @@ def run_forecast_spei(paths, country, init_month, method,
 
     Returns {window_tuple: filename}.
     """
-    out_dir = paths["forecast_root"] + f"init_{init_month:02d}/spei/"
+    out_dir = paths["forecast_root"] + f"init_{init_month:02d}/SPEI/"
     os.makedirs(out_dir, exist_ok=True)
 
     balance = forecast_balance_monthly(
