@@ -141,7 +141,7 @@ def hargreaves_modified(ds, Ra=None, tmin_var='tmin', tmax_var='tmax',
     Uses the precipitation-corrected temperature range,
         Td_adj = (Tmax - Tmin) - 0.0123 * P,
     floored at zero, with coefficients 0.0013 and 0.76 and the +17.0 offset.
-    Requires tmin, tmax and precip in `ds` (units: degC and mm/day).
+    Requires tmin, tmax and precip in `ds` (units: degC and mm/month).
     Ra is (T, L) in MJ m-2 day-1 via `_ra_dataarray`; 0.408 converts to
     mm/day equivalent.
     """
@@ -596,9 +596,12 @@ def build_et0_and_precip(paths, country, years, methods,
     ET0 is returned in mm/day (as the functions above produce it); precip as
     mm/month. Dims are time/lat/lon throughout.
 
-    Precip is regridded to the ERA5-Land grid of the first year, and the
-    regridder is rebuilt whenever a year's source grid differs, rather than
-    silently applying mismatched weights.
+    Precip arrives as one file per month (12 files per year); the twelve are
+    opened together with open_mfdataset, so each year is one continuous
+    time series comparable to the temperature files. Precip is regridded to
+    the ERA5-Land grid of the first year, and the regridder is rebuilt
+    whenever a year's source grid differs, rather than silently applying
+    mismatched weights.
     """
     box = boxes_african_countries(country)
     y0, y1 = years
@@ -620,12 +623,15 @@ def build_et0_and_precip(paths, country, years, methods,
     precip_parts = []
 
     for year in years_iter:
+        # The twelve monthly MSWEP files of this year, opened as one dataset.
+        precip_paths = sorted(glob.glob(f"{paths['mswep']}{year}*.nc"))
+
         with xr.open_dataset(f"{paths['t2m']}t2m_minimum_monthly_{year}.nc",
                              chunks={"valid_time": 12}) as ds_tmin, \
              xr.open_dataset(f"{paths['t2m']}t2m_maximum_monthly_{year}.nc",
                              chunks={"valid_time": 12}) as ds_tmax, \
-             xr.open_dataset(f"{paths['mswep']}{year}.nc",
-                             chunks={"time": 12}) as ds_p:
+             xr.open_mfdataset(precip_paths, combine="by_coords",
+                               chunks={"time": 12}) as ds_p:
 
             tmin = to_celsius(ds_tmin["t2m"], ds_tmin["t2m"])
             tmax = to_celsius(ds_tmax["t2m"], ds_tmin["t2m"])  # same units
@@ -651,15 +657,8 @@ def build_et0_and_precip(paths, country, years, methods,
             tmin_m = tmin_c.resample(time="1MS").mean()
             tmax_m = tmax_c.resample(time="1MS").mean()
 
-            # mm/day equivalent of the monthly total: hargreaves_modified
-            # needs it for its 0.0123 * P correction. Feeding the monthly
-            # total instead biases ET0 (about 13% for a tropical month).
-            n_days = xr.DataArray(tmin_m["time"].dt.days_in_month,
-                                  coords={"time": tmin_m["time"]}, dims=["time"])
-            precip_day = (precip_c / n_days).transpose("time", "lat", "lon")
-
             ds_monthly = xr.Dataset({"tmin": tmin_m, "tmax": tmax_m,
-                                     "precip": precip_day})
+                                     "precip": precip_c})
             Ra = _ra_dataarray(ds_monthly)
 
             for method in methods:
@@ -744,7 +743,7 @@ def forecast_monthly_file(root, kind, init_month, country, years):
     y0, y1 = years
     name = (f"{var}_monthly_lead1-3_init{init_month:02d}_{y0}-{y1}_"
             f"{country}_res_ERA5-Land_qdm_{calib}.nc")
-    return f"{root}/init_{init_month}/{var}/calibrated_{calib}/{name}"
+    return f"{root}/init_{init_month}/{var}/{name}"
 
 
 def open_monthly_forecast(root, kind, init_month, country, years,
@@ -847,9 +846,7 @@ def forecast_balance_monthly(root, country, init_month, method,
         dims=("lead", "init_year"),
         coords={"lead": tp["lead"], "init_year": years_da},
     )
-    precip_day = tp / n_days
-
-    ds = xr.Dataset({"tmin": mn, "tmax": mx, "precip": precip_day})
+    ds = xr.Dataset({"tmin": mn, "tmax": mx, "precip": tp})
 
     Ra = _ra_lead_year(ds, lead_month)
 

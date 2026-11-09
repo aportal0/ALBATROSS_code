@@ -10,6 +10,8 @@ For each month:
   - otherwise use NRT/Daily, and from that month onwards stay on NRT
 """
 
+import numpy as np
+import xarray as xr
 import glob
 import os
 import subprocess
@@ -24,7 +26,7 @@ PAST_MONTHLY = os.path.join(BASE, "Past", "Monthly")
 NRT_DAILY = os.path.join(BASE, "NRT", "Daily")
 NRT_MONTHLY = os.path.join(BASE, "NRT", "Monthly")
 
-YEAR_START = 2025
+YEAR_START = 2026
 YEAR_END = 2026
 
 
@@ -67,11 +69,19 @@ def month_is_complete(files, year, month):
     return len(files) == expected
 
 
-def run_monsum(files, outfile):
-    """cdo -O monsum -mergetime <files...> <outfile>"""
-    cmd = ["cdo", "-O", "monsum", "-mergetime", *files, outfile]
-    print(f"  cdo -O monsum -mergetime ({len(files)} files) -> {outfile}")
-    subprocess.run(cmd, check=True)
+def run_monsum(files, outfile, year, month):
+    """Sum the daily files over the month, then write one monthly file.
+
+    Equivalent to: cdo -O monsum -mergetime <files...> <outfile>
+    """
+    with xr.open_mfdataset(files, combine="by_coords") as ds:
+        summed = ds.sum(dim="time", keep_attrs=True)
+        summed = summed.assign_coords(
+            time=[np.datetime64(f"{year:04d}-{month:02d}-01")]
+        )
+        summed.load()
+        summed.to_netcdf(outfile)
+    print(f"  xarray sum of {len(files)} files -> {outfile}")
 
 
 def main():
@@ -86,7 +96,8 @@ def main():
 
             source_dir = NRT_DAILY if nrt_only else PAST_DAILY
             files = daily_files(source_dir, year, month)
-
+            
+            l_month = month_is_complete(files, year, month)
             if not nrt_only and not month_is_complete(files, year, month):
                 print(f"  Past/Daily incomplete or empty for {year}-{month:02d}"
                       f" -> switching to NRT from here on")
@@ -100,14 +111,22 @@ def main():
 
             outdir = NRT_MONTHLY if source_dir == NRT_DAILY else PAST_MONTHLY
             outfile = os.path.join(outdir, f"{year}{month:02d}.nc")
+            l_month = month_is_complete(files, year, month)
 
             if os.path.exists(outfile):
                 print(f"  exists, skipping: {outfile}")
                 continue
 
             try:
-                run_monsum(files, outfile)
-                print(f"  wrote {outfile} from {len(files)} files")
+                if l_month:
+                    run_monsum(files, outfile, year, month)
+                    print(f"  wrote {outfile} from {len(files)} files")
+                else:
+                    first, last = month_days(year, month)
+                    no_days = doy(last) - doy(first) + 1
+                    print(f"  WARNING: monthly sum not computed because of missing daily files;\n"
+                          f"           ({len(files)}/{no_days} files for month {month})")
+
             except subprocess.CalledProcessError as e:
                 print(f"  ERROR: cdo failed for {year}-{month:02d}: {e}", file=sys.stderr)
 
