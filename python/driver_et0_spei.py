@@ -28,8 +28,8 @@ import functions_spei_driver as fSPEI
 # COUNTRY must be a key of fSPEI.boxes_african_countries().
 # YEARS is an inclusive (start, end) pair, used for the observation branch.
 COUNTRY = "Madagascar"
-YEARS = (1993, 2024)
-SCALES = [12]
+YEARS = (1993, 2025)
+SCALES = [1,3,6,12]
 
 # "Hargreaves", "Mod-Hargreaves", or "both" (runs the SPEI chain twice).
 METHOD = "both"
@@ -72,28 +72,61 @@ def main() -> int:
         for key in keys:
             os.makedirs(paths[key], exist_ok=True)
 
+def main() -> int:
+    paths = fSPEI.resolve_paths(COUNTRY)
+    y0, y1 = YEARS
+
+    methods = (["Hargreaves", "Mod-Hargreaves"] if METHOD == "both"
+               else [METHOD])
+
+    keys = ("t2m", "mswep", "et0", "precip", "spei")
+    if RUN_OBS:
+        for key in keys:
+            os.makedirs(paths[key], exist_ok=True)
+
     # ---------------------------------------------------------- observations
     if RUN_OBS:
-        et0, precip = fSPEI.build_et0_and_precip(
-            paths, COUNTRY, YEARS, methods, force_regrid=FORCE_REGRID)
+        et0_names = {
+            m: os.path.join(paths["et0"],
+                            f"ET0_{m}_monthly_{y0}-{y1}_{COUNTRY}.nc")
+            for m in methods
+        }
+        precip_name = os.path.join(
+            paths["precip"], f"precip_monthly_{y0}-{y1}_{COUNTRY}.nc")
 
+        obs_complete = (not FORCE_RECOMPUTE
+                        and all(os.path.exists(p) for p in et0_names.values())
+                        and os.path.exists(precip_name))
+
+        if obs_complete:
+            et0 = {m: xr.open_dataarray(p) for m, p in et0_names.items()}
+            for m, da in et0.items():
+                da.load()          # close the handle; the file may be rewritten
+                print(f"[ET0] {m} loaded from {da.encoding.get('source', 'file')}",
+                      flush=True)
+            precip = xr.Dataset({"precipitation": xr.open_dataarray(precip_name)})
+            precip.load()
+            print("[precip] loaded from cache", flush=True)
+        else:
+            et0, precip = fSPEI.build_et0_and_precip(
+                paths, COUNTRY, YEARS, methods, force_regrid=FORCE_REGRID)
+
+            for method in methods:
+                et0[method].to_netcdf(et0_names[method])
+                print(f"[ET0] wrote {method} multi-year file", flush=True)
+
+            precip["precipitation"].to_netcdf(precip_name)
+            print("[precip] wrote multi-year file", flush=True)
+
+        # The SPEI chain runs off whatever is now in memory, cached or fresh.
         for method in methods:
             if method not in et0:
                 continue
-
-            et0[method].to_netcdf(os.path.join(
-                paths["et0"], f"ET0_{method}_monthly_{y0}-{y1}_{COUNTRY}.nc"))
-            print(f"[ET0] wrote {method} multi-year file", flush=True)
-
             lsm = fSPEI.land_fraction(paths, COUNTRY, et0[method])
             balance = fSPEI.water_balance(precip["precipitation"],
                                           et0[method], lsm)
             fSPEI.write_spei(balance, paths["spei"], method, YEARS, SCALES,
                              COUNTRY)
-
-        precip["precipitation"].to_netcdf(os.path.join(
-            paths["precip"], f"precip_monthly_{y0}-{y1}_{COUNTRY}.nc"))
-        print(f"[precip] wrote {method} multi-year file", flush=True)
 
     # -------------------------------------------------------------- forecast
     if RUN_FORECAST:
