@@ -61,6 +61,10 @@ VERIFY_MONTH_OFFSET = 3
 
 PATH_OUT_NC  = DIR_FCST + \
         f"SPEI_Mod-Hargreaves_deterministic_scores_lead123_init{INIT_MONTH}_1993-2025_Madagascar.nc"
+
+# figure filename stem, following the same convention as the NetCDF output
+FIG_STEM = (f"SPEI_Mod-Hargreaves_{{score}}_lead123_init{INIT_MONTH}"
+            f"_1993-2025_Madagascar")
 WRITE_CSV    = False          # also write the flattened grid as CSV
 WRITE_NC     = True          # gridded scores -> NetCDF
 
@@ -195,39 +199,55 @@ def plot_scores(sc, ratio, n_eff, r_crit, y0, y1):
     src_o = PATH_OBS.split("/")[-1]
 
     # ---------------- RMSE map -----------------------------------------
-    fig, ax = plt.subplots(figsize=(8, 4.5), layout="constrained")
+    fig, ax = plt.subplots(figsize=(6, 5), layout="constrained")
     r = float(np.nanmean(sc["rmse"].values))
     _map(ax, sc["rmse"],
-         f"RMSE of the ensemble-mean SPEI, init {INIT_MONTH:02d}, {period}",
-         "viridis", "RMSE (SPEI units)")
+         f"RMSE of the ensemble-mean SPEI\ninit {INIT_MONTH:02d}, {period}",
+         "binary", "RMSE (SPEI units)")
     fig.supxlabel(f"Domain mean {r:.2f}; no-skill reference 1.0. "
                   f"Source: {src_f}", x=0.01, ha="left", fontsize=8,
                   color="#777")
-    fig.savefig(f"{FIG_DIR}/rmse_map.png", dpi=200)
+    fig.savefig(f"{FIG_DIR}/{FIG_STEM.format(score='rmse')}.png", dpi=200)
     plt.close(fig)
 
     # ---------------- correlation map ----------------------------------
-    fig, ax = plt.subplots(figsize=(8, 4.5), layout="constrained")
-    frac = float(np.nanmean(sc["corr"].values > r_crit))
-    _map(ax, sc["corr"],
-         f"Temporal correlation of ensemble-mean SPEI, init {INIT_MONTH:02d}, "
+    # Cells whose correlation exceeds the p=0.05 critical value are
+    # outlined on the same map, so significance is visible without a
+    # second plot.
+    fig, ax = plt.subplots(figsize=(6, 5), layout="constrained")
+    corr = sc["corr"]
+    sig = (corr > r_crit)
+    frac = float(np.nanmean(sig.values))
+    _map(ax, corr,
+         f"Temporal correlation of ensemble-mean SPEI\n init {INIT_MONTH:02d}, "
          f"{period}",
          "RdBu_r", "Pearson r", diverging=True)
-    fig.supxlabel(f"{frac:.0%} of grid points above the p=0.05 critical "
-                  f"r of {r_crit:.2f}. Source: {src_o}",
-                  x=0.01, ha="left", fontsize=8, color="#777")
-    fig.savefig(f"{FIG_DIR}/corr_map.png", dpi=200)
+
+    # Mark the significant cells. Hatching is unusable at this grid
+    # resolution: the cells are ~0.1 deg, far below one pixel at the
+    # figure size, so hatch lines collapse into a solid tint. Draw a
+    # stippled mask instead, one small dot per significant cell.
+    from matplotlib.lines import Line2D
+    lon2d, lat2d = np.meshgrid(corr.lon.values, corr.lat.values)
+    msk = np.isfinite(corr.values) & sig.values
+    ax.scatter(lon2d[msk], lat2d[msk], s=.6, c="#101010",
+               marker="o", linewidths=0, zorder=4)
+    ax.legend(handles=[Line2D([], [], marker="o", linestyle="none",
+                              markersize=2.5, color="#101010",
+                              label=f"significant at p<0.05 (r > {r_crit:.2f})")],
+              loc="lower left", fontsize=8, frameon=True, framealpha=0.9,
+              borderpad=0.4)
+
+    fig.savefig(f"{FIG_DIR}/{FIG_STEM.format(score='corr')}.png", dpi=200)
     plt.close(fig)
 
     # ---------------- spread / RMSE map --------------------------------
-    fig, ax = plt.subplots(figsize=(8, 4.5), layout="constrained")
+    fig, ax = plt.subplots(figsize=(5, 6), layout="constrained")
     rr = float(np.nanmean(ratio.values))
     _map(ax, ratio,
-         f"Ensemble spread divided by RMSE, init {INIT_MONTH:02d}, {period}",
-         "PuOr_r", "spread / RMSE (1 = calibrated)", vmin=0, vmax=2)
-    fig.supxlabel(f"Domain mean {rr:.2f}. Source: {src_f}",
-                  x=0.01, ha="left", fontsize=8, color="#777")
-    fig.savefig(f"{FIG_DIR}/spread_rmse_map.png", dpi=200)
+         f"Ensemble spread divided by RMSE\ninit {INIT_MONTH:02d}, {period}",
+         "PuOr_r", "spread / RMSE (1 = calibrated)", vmin=0.8, vmax=1.2)
+    fig.savefig(f"{FIG_DIR}/{FIG_STEM.format(score='spread_rmse')}.png", dpi=200)
     plt.close(fig)
 
     # ---------------- distributions ------------------------------------
@@ -261,44 +281,16 @@ def plot_scores(sc, ratio, n_eff, r_crit, y0, y1):
         ax.legend(fontsize=8, frameon=False)
         ax.spines[["top", "right"]].set_visible(False)
     fig.suptitle(f"Distribution of SPEI skill scores across "
-                 f"{sc['rmse'].size} grid points, init {INIT_MONTH:02d}, "
+                 f"{sc['rmse'].size} grid points\ninit {INIT_MONTH:02d}, "
                  f"{period}")
-    fig.savefig(f"{FIG_DIR}/score_distributions.png", dpi=200)
+    fig.savefig(f"{FIG_DIR}/{FIG_STEM.format(score='distributions')}.png",
+                dpi=200)
     plt.close(fig)
 
-    # ---------------- spread vs RMSE ------------------------------------
-    fig, ax = plt.subplots(figsize=(6.5, 5), layout="constrained")
-    xv = sc["rmse"].values.ravel()
-    yv = sc["spread"].values.ravel()
-    m = np.isfinite(xv) & np.isfinite(yv)
-    if m.sum():
-        ax.scatter(xv[m], yv[m], s=9, alpha=0.45, color="#2F5D9E",
-                   edgecolors="none")
-        lim = [0, float(np.nanpercentile(
-            np.concatenate([xv[m], yv[m]]), 99.5))]
-        if lim[1] > 0:
-            ax.plot(lim, lim, color="#B33", lw=1.3, ls="--",
-                    label="spread = RMSE (calibrated)")
-            ax.set_xlim(lim)
-            ax.set_ylim(lim)
-        above = float(np.nanmean(yv[m] > xv[m]))
-    else:
-        above = float("nan")
-    ax.set_xlabel("RMSE (SPEI units)")
-    ax.set_ylabel("Ensemble spread (SPEI units)")
-    ax.set_title("Ensemble spread against RMSE, one point per grid cell")
-    ax.legend(fontsize=9, frameon=False)
-    ax.spines[["top", "right"]].set_visible(False)
-    fig.supxlabel(f"Spread exceeds RMSE at {above:.0%} of grid points "
-                  f"(over-dispersive). Source: {src_f}",
-                  x=0.01, ha="left", fontsize=8, color="#777")
-    fig.savefig(f"{FIG_DIR}/spread_vs_rmse.png", dpi=200)
-    plt.close(fig)
 
-    print(f"\nwrote 5 figures to {FIG_DIR}/")
-    for f in ("rmse_map.png", "corr_map.png", "spread_rmse_map.png",
-              "score_distributions.png", "spread_vs_rmse.png"):
-        print(f"  {f}")
+    print(f"\nwrote 4 figures to {FIG_DIR}/")
+    for s in ("rmse", "corr", "spread_rmse", "distributions"):
+        print(f"  {FIG_STEM.format(score=s)}.png")
 
 
 # ----------------------------------------------------------------------
@@ -416,8 +408,10 @@ def main():
         df["verify_month_offset"] = VERIFY_MONTH_OFFSET
         df["n_cases"] = n_eff
         df["r_crit_p05"] = r_crit
-        df.to_csv("spei_deterministic_scores.csv", index=False)
-        print(f"wrote spei_deterministic_scores.csv ({len(df)} rows)")
+        csv_name = ("SPEI_Mod-Hargreaves_deterministic_scores_lead123_"
+                    f"init{INIT_MONTH}_1993-2025_Madagascar.csv")
+        df.to_csv(csv_name, index=False)
+        print(f"wrote {csv_name} ({len(df)} rows)")
 
     # ---- figures --------------------------------------------------------
     if WRITE_FIGS:
