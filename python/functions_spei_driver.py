@@ -7,7 +7,7 @@ from scipy.stats import norm
 import os
 from multiprocessing import Pool
 import socket
-
+import glob
 
 # ---------------------------------------------------------------- utilities
 def get_scratch_path():
@@ -512,14 +512,14 @@ def resolve_paths(country, scratch_root=None):
             "get_scratch_path() returned None: this hostname is not "
             "recognised. Pass scratch_root explicitly or run on the cluster."
         )
-    root = f"{d}MSWEP/MSWEP_V316_test/Past/"
+    root = f"{d}MSWEP/MSWEP_V316_test/"
     return {
         "t2m": f"{d}ERA5-Land/t2m/monthly/",
-        "mswep": f"{root}Monthly/",
+        "mswep": [f"{root}Past/Monthly/", f"{root}NRT/Monthly/"],
         "et0": f"{d}ERA5-Land/ET0/monthly/",
-        "precip": f"{root}Monthly/regridded_ERA5-Land/",
+        "precip": f"{root}Past/Monthly/regridded_ERA5-Land/",
         "spei": f"{d}ERA5-Land/SPEI/monthly/",
-        "weights": f"{root}Daily/regridded_ERA5-Land/"
+        "weights": f"{root}Past/Daily/regridded_ERA5-Land/"
                    f"weights_mswep_to_era5land_{country}.nc",
         "mask": f"{d}ERA5-Land/land_mask_ERA5-Land.nc",
         "forecast_root": f"{d}C3S_seasonal/ecmwf51/monthly/",
@@ -624,14 +624,18 @@ def build_et0_and_precip(paths, country, years, methods,
 
     for year in years_iter:
         # The twelve monthly MSWEP files of this year, opened as one dataset.
-        precip_paths = sorted(glob.glob(f"{paths['mswep']}{year}*.nc"))
+        precip_paths = sorted([
+            file for i in range(2) 
+            for file in glob.glob(f"{paths['mswep'][i]}{year}*.nc")
+            ])
+        n_chunks = len(precip_paths)
 
         with xr.open_dataset(f"{paths['t2m']}t2m_minimum_monthly_{year}.nc",
-                             chunks={"valid_time": 12}) as ds_tmin, \
+                             chunks={"valid_time": n_chunks}) as ds_tmin, \
              xr.open_dataset(f"{paths['t2m']}t2m_maximum_monthly_{year}.nc",
-                             chunks={"valid_time": 12}) as ds_tmax, \
+                             chunks={"valid_time": n_chunks}) as ds_tmax, \
              xr.open_mfdataset(precip_paths, combine="by_coords",
-                               chunks={"time": 12}) as ds_p:
+                               chunks={"time": n_chunks}) as ds_p:
 
             tmin = to_celsius(ds_tmin["t2m"], ds_tmin["t2m"])
             tmax = to_celsius(ds_tmax["t2m"], ds_tmin["t2m"])  # same units
