@@ -25,14 +25,17 @@ MONTHS = list(calendar.month_abbr)[1:]
 # ----------------------------------------------------------------------
 # CONFIG - used by the __main__ entry point
 # ----------------------------------------------------------------------
-NC_FILE      = ("/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/monthly/"
-                "init_10/SPEI/SPEI_Mod-Hargreaves_deterministic_scores_"
-                "lead123_init10_1993-2025_Madagascar.nc")
-FIG_DIR      = "/ec/res4/scratch/ecme4047/figures/SPEI"
-FIG_STEM     = ("SPEI_Mod-Hargreaves_{score}_lead123_init10"
-                "_1993-2025_Madagascar")
 INIT_MONTH   = 10
-METHOD_LABEL = "Modified Hargreaves"
+METHOD_LABEL = "Mod-Hargreaves"
+YEAR_RANGE = [1993, 2025]
+
+NC_FILE      = ("/home/alice/Desktop/UniBo/data/C3S_seasonal/ecmwf51/monthly/"
+                f"init_{INIT_MONTH}/SPEI/SPEI_{METHOD_LABEL}_deterministic_scores_"
+                f"lead123_init{INIT_MONTH}_{YEAR_RANGE[0]}-{YEAR_RANGE[1]}_Madagascar.nc")
+FIG_DIR      = "/home/alice/Desktop/UniBo/figures/SPEI"
+FIG_STEM     = (f"SPEI_{METHOD_LABEL}_"
+                "{score}_lead123_"
+                f"init{INIT_MONTH}_{YEAR_RANGE[0]}-{YEAR_RANGE[1]}_Madagascar")
 
 
 # =============================================================================
@@ -137,7 +140,7 @@ def plot_scores(out, ratio, n_eff, r_crit, y0, y1,
 
     if fig_stem is None:
         fig_stem = ("SPEI_Mod-Hargreaves_{score}_lead123_init"
-                    f"{init_month}_1993-2025_Madagascar")
+                    f"{init_month}_{y0}-{y1}_Madagascar")
 
     def path(score):
         return os.path.join(fig_dir, fig_stem.format(score=score) + ".png")
@@ -151,7 +154,7 @@ def plot_scores(out, ratio, n_eff, r_crit, y0, y1,
     _map(ax, out["rmse"],
          f"SPEI forecast RMSE - {method_label}\n"
          f"leads 1-3, init {init_label}, {period}",
-         "viridis", "RMSE (SPEI units)", extend="max")
+         "binary", "RMSE (SPEI units)", extend="max")
     fig.tight_layout()
     fig.savefig(path("rmse"), dpi=300)
     plt.close(fig)
@@ -170,15 +173,28 @@ def plot_scores(out, ratio, n_eff, r_crit, y0, y1,
          f"leads 1-3, init {init_label}, {period}",
          "RdBu_r", "Pearson r", diverging=True, extend="both")
 
-    # Stippled mask rather than hatching: the cells are ~0.1 deg, far
-    # below one pixel at this figure size, so hatch lines collapse.
-    lon2d, lat2d = np.meshgrid(corr.lon.values, corr.lat.values)
+    # Outline the significant region along the exact cell edges.
+    #
+    # contour() is not used: it interpolates between sample points, so a
+    # boundary crossing the grid diagonally is chamfered and rectangles
+    # come out with rounded corners. Instead each side of the region is
+    # emitted as a straight segment of exactly one cell width, so every
+    # corner is a true right angle at a cell corner.
+    lon = np.asarray(corr.lon.values)
+    lat = np.asarray(corr.lat.values)
     msk = np.isfinite(corr.values) & sig.values
-    ax.scatter(lon2d[msk], lat2d[msk], s=1.6, c="#101010",
-               marker="o", linewidths=0, zorder=4,
-               transform=ccrs.PlateCarree())
-    ax.legend(handles=[Line2D([], [], marker="o", linestyle="none",
-                              markersize=3.5, color="#101010",
+    print(f"  corr map: {int(msk.sum())} of {msk.size} cells significant "
+          f"({msk.mean():.1%})")
+
+    if msk.any():
+        xs, ys = region_edges(msk, lon, lat)
+        ax.plot(xs, ys, color="green", linewidth=0.7,
+                solid_capstyle="butt", solid_joinstyle="miter",
+                transform=ccrs.PlateCarree(), zorder=5)
+        print(f"  corr map: outline drawn as {len(xs) // 3} edge "
+              f"segments")
+
+    ax.legend(handles=[Line2D([], [], color="green", linewidth=1,
                               label=f"significant at p<0.05 (r > {r_crit:.2f})")],
               loc="lower left", fontsize=8, frameon=True, framealpha=0.9,
               borderpad=0.4)
@@ -195,7 +211,7 @@ def plot_scores(out, ratio, n_eff, r_crit, y0, y1,
     _map(ax, ratio,
          f"SPEI forecast spread / RMSE - {method_label}\n"
          f"leads 1-3, init {init_label}, {period}",
-         "PuOr_r", "spread / RMSE (1 = calibrated)", vmin=0, vmax=2,
+         "PuOr_r", "spread / RMSE (1 = calibrated)", vmin=0.8, vmax=1.2,
          extend="both")
     fig.tight_layout()
     fig.savefig(path("spread_rmse"), dpi=300)
@@ -238,45 +254,97 @@ def plot_scores(out, ratio, n_eff, r_crit, y0, y1,
     fig.savefig(path("distributions"), dpi=300)
     plt.close(fig)
 
-    # ---------------- spread vs RMSE -----------------------------------
-    fig, ax = plt.subplots(figsize=(4.4, 6))
-    xv = np.asarray(out["rmse"].values).ravel()
-    yv = np.asarray(out["spread"].values).ravel()
-    m = np.isfinite(xv) & np.isfinite(yv)
-    if m.sum():
-        ax.scatter(xv[m], yv[m], s=9, alpha=0.45, color="#2F5D9E",
-                   edgecolors="none")
-        lim = [0, float(np.nanpercentile(
-            np.concatenate([xv[m], yv[m]]), 99.5))]
-        if lim[1] > 0:
-            ax.plot(lim, lim, color="#B33", lw=1.3, ls="--",
-                    label="spread = RMSE (calibrated)")
-            ax.set_xlim(lim)
-            ax.set_ylim(lim)
-        above = float(np.nanmean(yv[m] > xv[m]))
-    else:
-        above = float("nan")
-    ax.set_xlabel("RMSE (SPEI units)")
-    ax.set_ylabel("Ensemble spread (SPEI units)")
-    ax.set_title(f"Ensemble spread against RMSE - {method_label}\n"
-                 f"one point per grid cell, init {init_label}, {period}")
-    ax.legend(fontsize=9, frameon=False)
-    ax.spines[["top", "right"]].set_visible(False)
-    fig.tight_layout()
-    fig.savefig(path("spread_vs_rmse"), dpi=300)
-    plt.close(fig)
-    print(f"  spread-vs-rmse: spread exceeds RMSE at {above:.0%} of grid "
-          f"points (over-dispersive)")
-
-    print(f"\nwrote 5 figures to {fig_dir}/")
-    for s in ("rmse", "corr", "spread_rmse", "distributions",
-              "spread_vs_rmse"):
+    print(f"\nwrote 4 figures to {fig_dir}/")
+    for s in ("rmse", "corr", "spread_rmse", "distributions"):
         print(f"  {fig_stem.format(score=s)}.png")
 
 
 # =============================================================================
 # Replot from a saved score file
 # =============================================================================
+def region_edges(mask, lon, lat):
+    """Segments tracing the boundary of a boolean mask, along cell edges.
+
+    Each side of the region is emitted as a straight segment exactly one
+    cell wide, so corners land on true cell corners with right angles -
+    unlike contour(), which interpolates and rounds them off.
+
+    A side is emitted only where a True cell meets a False or
+    out-of-bounds neighbour, so interior edges are skipped and adjacent
+    cells merge into one connected region. Segments are separated by NaN
+    so separate patches are not joined by a stray line.
+
+    Neighbours are taken in ARRAY order, and the emitted y coordinate is
+    the coordinate value for that row, so a latitude axis running either
+    north-to-south or south-to-north is handled correctly.
+    """
+    lon = np.asarray(lon)
+    lat = np.asarray(lat)
+    mask = np.asarray(mask, dtype=bool)
+
+    dlon = float(np.median(np.diff(lon))) if lon.size > 1 else 0.1
+    dlat = float(np.median(np.diff(lat))) if lat.size > 1 else 0.1
+    hx, hy = dlon / 2.0, dlat / 2.0
+
+    xs, ys = [], []
+    ny, nx = mask.shape
+    for j in range(ny):
+        for i in range(nx):
+            if not mask[j, i]:
+                continue
+            x, y = lon[i], lat[j]
+            # west side: neighbour is the previous column
+            if i == 0 or not mask[j, i - 1]:
+                xs += [x - hx, x - hx, np.nan]
+                ys += [y - hy, y + hy, np.nan]
+            # east side
+            if i == nx - 1 or not mask[j, i + 1]:
+                xs += [x + hx, x + hx, np.nan]
+                ys += [y - hy, y + hy, np.nan]
+            # one side per row neighbour, in array order
+            if j == 0 or not mask[j - 1, i]:
+                xs += [x - hx, x + hx, np.nan]
+                ys += [y - hy, y - hy, np.nan]
+            if j == ny - 1 or not mask[j + 1, i]:
+                xs += [x - hx, x + hx, np.nan]
+                ys += [y + hy, y + hy, np.nan]
+
+    return np.asarray(xs), np.asarray(ys)
+
+
+def _get_scalar(ds, name):
+    """Read a scalar written either as a global attribute or a coordinate.
+
+    The metrics script stores the scalars with assign_coords, so they
+    live in ds.coords rather than ds.attrs. Look in both, and in the
+    variable metadata as a last resort. Returns nan when absent.
+    """
+    v = ds.attrs.get(name)
+    if v is not None:
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            pass
+
+    if name in ds.coords:
+        try:
+            return float(np.asarray(ds[name].values).ravel()[0])
+        except (TypeError, ValueError, IndexError):
+            pass
+
+    if name in ds.variables:
+        try:
+            arr = np.asarray(ds[name].values).ravel()
+            arr = arr[np.isfinite(arr)]
+            if arr.size:
+                return float(arr[0])
+        except (TypeError, ValueError, IndexError):
+            pass
+
+    return float("nan")
+
+
+
 def plot_from_file(nc_path, fig_dir="figures", fig_stem=None,
                    method_label="Modified Hargreaves", init_month=10):
     """Redraw the figures from a score NetCDF written by the metrics script."""
@@ -284,10 +352,26 @@ def plot_from_file(nc_path, fig_dir="figures", fig_stem=None,
 
     out = xr.open_dataset(nc_path)
 
-    n_eff = int(out.attrs.get("n_cases", out["n_cases"].size))
-    r_crit = float(out.attrs.get("r_crit_p05", float("nan")))
-    y0 = int(out.attrs.get("first_init_year", 0))
-    y1 = int(out.attrs.get("last_init_year", 0))
+    y0 = YEAR_RANGE[0]
+    y1 = YEAR_RANGE[1]
+
+    # n_eff and r_crit are read from the score file, not recomputed:
+    # both are written by the metrics script as scalar coordinates, so
+    # the figures use exactly the values the scoring used.
+    n_eff = int(_get_scalar(out, "n_cases"))
+    if not np.isfinite(n_eff) or n_eff < 3:
+        n_eff = y1 - y0 + 1
+
+    r_crit = _get_scalar(out, "r_crit_p05")
+    if not np.isfinite(r_crit):
+        # older score files: the same threshold is also written as a
+        # gridded copy, so any finite value of it will do
+        if "corr_r_crit_p05" in out:
+            v = np.asarray(out["corr_r_crit_p05"].values).ravel()
+            v = v[np.isfinite(v)]
+            if v.size:
+                r_crit = float(v[0])
+    print(f"  read from file: n_eff = {n_eff}, r_crit_p05 = {r_crit:.3f}")
 
     ratio = out["spread_rmse_ratio"]
 
