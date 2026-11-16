@@ -41,25 +41,27 @@ from scipy import stats
 START_YEAR = 1993
 END_YEAR   = 2025
 
+METHOD = "Mod-Hargreaves"
 INIT_MONTH   = 10          # October
 INIT_YEAR    = 1993        # first init year in the file
 INIT_END_YEAR = 2025       # last init year in the file
-LEADS        = (1, 2, 3)   # aggregate = Nov, Dec, Jan
+LEADS        = (0, 1, 2)   # aggregate = Nov, Dec, Jan
 LEAD_OFFSET  = 1           # lead n = init + n months  -> lead 1 = November
+LEAD_STR = "".join(str(L+LEAD_OFFSET) for L in LEADS)
 
 DIR_FCST = f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/monthly/init_{INIT_MONTH}/SPEI/"
 PATH_FCST = DIR_FCST +\
-        (f"SPEI_Mod-Hargreaves_lead123_init{INIT_MONTH}_1993-2025_Madagascar_"
+        (f"SPEI_{METHOD}_lead{LEAD_STR}_init{INIT_MONTH}_1993-2025_Madagascar_"
          "res_ERA5-Land_qdm_ERA5-Land_MSWEP.nc")
 DIR_OBS = "/ec/res4/scratch/ecme4047/ERA5-Land/SPEI/monthly/"
-PATH_OBS  = DIR_OBS + "SPEI_Mod-Hargreaves_3m_1993-2026_Madagascar.nc"
+PATH_OBS  = DIR_OBS + f"SPEI_{METHOD}_{len(LEADS)}m_1993-2026_Madagascar.nc"
 
 # Aggregated field verifies against the last month of the window (January for Oct init),
 # which is init month + 3.
-VERIFY_MONTH_OFFSET = 3
+VERIFY_MONTH_OFFSET = LEAD_OFFSET + LEADS[-1]
 
 PATH_OUT_NC  = DIR_FCST + \
-        f"SPEI_Mod-Hargreaves_deterministic_scores_lead123_init{INIT_MONTH}_1993-2025_Madagascar.nc"
+        f"SPEI_{METHOD}_deterministic_scores_lead{LEAD_STR}_init{INIT_MONTH}_1993-2025_Madagascar.nc"
 WRITE_CSV    = False          # also write the flattened grid as CSV
 WRITE_NC     = True          # gridded scores -> NetCDF
 
@@ -69,7 +71,7 @@ WRITE_NC     = True          # gridded scores -> NetCDF
 def window_months(init_year):
     """[(year, month), ...] for each lead of the Oct-init window."""
     return [((init_year + (INIT_MONTH - 1 + L * LEAD_OFFSET) // 12),
-             (INIT_MONTH - 1 + L * LEAD_OFFSET) % 12 + 1) for L in LEADS]
+             (INIT_MONTH - 1 + L + LEAD_OFFSET) % 12 + 1) for L in LEADS]
 
 
 def verify_month(init_year):
@@ -177,7 +179,6 @@ def main():
     idx = [yrs.index(y) for y in usable]
     tgt = np.array([verify_month(y) for y in usable])
 
-    print(fcst)
     f = fcst.isel(init_year=idx).assign_coords(time=("init_year", tgt))
     f = f.swap_dims({"init_year": "time"}).transpose(
         "number", "time", "lat", "lon")
