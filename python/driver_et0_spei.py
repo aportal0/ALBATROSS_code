@@ -109,7 +109,8 @@ def main() -> int:
                 paths, COUNTRY, YEARS, methods, force_regrid=FORCE_REGRID)
 
             for method in methods:
-                et0[method].to_netcdf(et0_names[method])
+                et0_renamed = et0[method].rename(method="ET0")
+                et0_renamed.to_netcdf(et0_names[method])
                 print(f"[ET0] wrote {method} multi-year file", flush=True)
 
             precip["precipitation"].to_netcdf(precip_name)

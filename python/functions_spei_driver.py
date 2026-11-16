@@ -938,9 +938,47 @@ def _spei_window_worker(args):
     return j, _spei_window_1d(vals, min_valid).astype(np.float32)
 
 
+def _spei_window_pooled(flat_values, n_mem, n_year, min_valid=8):
+    """SPEI for one grid point, fitted on the pooled member x year sample.
+
+    `flat_values` is member-major: index mi * n_year + yi. One log-logistic
+    is fitted on every finite value at this point, then each member's year
+    series is transformed with those shared parameters.
+
+    Returns (spei, params) where params is (beta, loc, scale), all-NaN when
+    the fit was skipped.
+    """
+    vals = np.asarray(flat_values, dtype=float)
+    out = np.full(vals.shape, np.nan, dtype=float)
+    nan3 = np.array([np.nan, np.nan, np.nan])
+
+    good = np.isfinite(vals)
+    if good.sum() < min_valid:
+        return out, nan3
+
+    beta, loc, scale = _fit_loglogistic_pwm(vals[good])
+    if np.isnan(beta):
+        return out, nan3
+
+    probs = _loglogistic_cdf(vals[good], beta, loc, scale)
+    out[good] = norm.ppf(probs)
+    return out, np.array([beta, loc, scale])
+
+
+def _spei_pooled_worker(args):
+    """Multiprocessing entry point for `_spei_window_pooled`."""
+    k, vals, min_valid, n_mem = args
+    n_year = vals.size // n_mem
+    nan3 = np.array([np.nan, np.nan, np.nan])
+    if np.isfinite(vals).sum() < min_valid:
+        return k, np.full((n_mem, n_year), np.nan, dtype=np.float32), nan3
+    res, par = _spei_window_pooled(vals, n_mem, n_year, min_valid)
+    return k, res.reshape(n_mem, n_year).astype(np.float32), par
+
+
 def compute_spei_forecast(balance, scale=None, lead_index=None,
                           min_valid=8, n_workers=None, chunk_size=200):
-    """SPEI for a forecast window, per ensemble member.
+    """SPEI for a forecast window, fitted over all members at once.
 
     `balance` carries dims (lead, number, init_year, lat, lon). The window is
     accumulated over `lead_index` (default: all leads present).
@@ -949,8 +987,9 @@ def compute_spei_forecast(balance, scale=None, lead_index=None,
     continuous monthly series -- with init 10 dropped, here the
     accumulation runs over `lead`, the only contiguous axis.
 
-    Returns a DataArray named 'SPEI' with dims
-    (number, init_year, lat, lon). The `number` axis is preserved.
+    Returns (spei, params): a DataArray named 'SPEI' with dims
+    (number, init_year, lat, lon), and a Dataset carrying the fitted
+    log-logistic parameters (beta, loc, scale) per grid point.
     """
     if "lead" not in balance.dims:
         raise ValueError("balance has no 'lead' dimension")
@@ -979,11 +1018,10 @@ def compute_spei_forecast(balance, scale=None, lead_index=None,
     mdim = "number"
 
     # (number, init_year, lat, lon) -> (number, init_year, point). The
-    # axis stays in the array rather than being merged into `point`: each
-    # `number` dimension stays in the array: each member is fitted and
-    # transformed independently, so each keeps its own SPEI series. Merging
-    # members into `point` would do the same but lose the ability to tell
-    # them apart in the output.
+    # `number` axis is kept in the array so members stay distinguishable in
+    # the output, but the FIT is pooled over it: at each grid point one
+    # log-logistic is fitted on every member x year value together, and all
+    # members are then transformed with those shared parameters.
     stacked = accum.transpose(mdim, "init_year", "lat", "lon").stack(
             point=("lat", "lon"))
     arr = stacked.values
@@ -993,25 +1031,29 @@ def compute_spei_forecast(balance, scale=None, lead_index=None,
     arr_v = arr[:, :, valid]
     out_v = np.full(arr_v.shape, np.nan, dtype=np.float32)
 
+    # one (beta, loc, scale) triple per valid grid point
+    par_v = np.full((int(valid.sum()), 3), np.nan, dtype=np.float64)
+
     if n_workers is None:
         n_workers = int(os.environ.get("SLURM_CPUS_PER_TASK", "1"))
 
     n_mem, n_year, n_pt = arr_v.shape
 
     if n_workers <= 1:
-        for mi in range(n_mem):
-            for k in range(n_pt):
-                out_v[mi, :, k] = _spei_window_1d(arr_v[mi, :, k], min_valid)
+        for k in range(n_pt):
+            vals = arr_v[:, :, k].ravel()
+            res, par = _spei_window_pooled(vals, n_mem, n_year, min_valid)
+            out_v[:, :, k] = res.reshape(n_mem, n_year)
+            par_v[k] = par
     else:
-        # One task per (number, point); `_spei_window_worker` returns the
-        # flat index into (number, point).
-        tasks = [(mi * n_pt + k, arr_v[mi, :, k], min_valid)
-                 for mi in range(n_mem) for k in range(n_pt)]
+        # One task per point; the fit is pooled over members inside the task.
+        tasks = [(k, arr_v[:, :, k].ravel(), min_valid, n_mem)
+                 for k in range(n_pt)]
         with Pool(processes=n_workers) as pool:
-            for idx, out in pool.imap_unordered(_spei_window_worker, tasks,
-                                                chunksize=chunk_size):
-                mi, k = divmod(idx, n_pt)
-                out_v[mi, :, k] = out
+            for k, res, par in pool.imap_unordered(_spei_pooled_worker, tasks,
+                                                   chunksize=chunk_size):
+                out_v[:, :, k] = res
+                par_v[k] = par
 
     out = np.full(arr.shape, np.nan, dtype=np.float32)
     out[:, :, valid] = out_v
@@ -1028,8 +1070,29 @@ def compute_spei_forecast(balance, scale=None, lead_index=None,
     spei.attrs["leads"] = list(lead_index)
     spei.attrs["n_years"] = int(accum["init_year"].size)
     spei.attrs["n_members"] = int(accum[mdim].size)
-    spei.attrs["fit"] = "log-logistic PWM over forecast windows, per member"
-    return spei
+    spei.attrs["fit"] = "log-logistic PWM pooled over all members"
+
+    # Fitted parameters, one set per grid point. No `number` and no
+    # `init_year` axis: the fit is pooled over both.
+    n_lat, n_lon = int(accum.sizes["lat"]), int(accum.sizes["lon"])
+    par_full = np.full((3, n_lat * n_lon), np.nan, dtype=np.float64)
+    par_full[:, valid] = par_v.T
+
+    par_ds = xr.Dataset(
+        {
+            "beta":  (("lat", "lon"), par_full[0].reshape(n_lat, n_lon)),
+            "loc":   (("lat", "lon"), par_full[1].reshape(n_lat, n_lon)),
+            "scale": (("lat", "lon"), par_full[2].reshape(n_lat, n_lon)),
+        },
+        coords={"lat": accum["lat"], "lon": accum["lon"]},
+    )
+    par_ds.attrs["fit"] = "log-logistic PWM pooled over all members"
+    par_ds.attrs["leads"] = list(lead_index)
+    par_ds.attrs["n_members"] = int(accum[mdim].size)
+    par_ds.attrs["n_years"] = int(accum["init_year"].size)
+    par_ds.attrs["sampling"] = "pooled member x init_year, per grid point"
+
+    return spei, par_ds
 
 
 def write_spei_forecast(balance, out_dir, method, init_month, country, years,
@@ -1042,7 +1105,7 @@ def write_spei_forecast(balance, out_dir, method, init_month, country, years,
     """
     os.makedirs(out_dir, exist_ok=True)
 
-    spei = compute_spei_forecast(balance, lead_index=lead_index)
+    spei, par_ds = compute_spei_forecast(balance, lead_index=lead_index)
 
     y0, y1 = years
     leads = "".join(str(l) for l in spei.attrs["leads"])
@@ -1053,6 +1116,13 @@ def write_spei_forecast(balance, out_dir, method, init_month, country, years,
     spei.to_netcdf(os.path.join(out_dir, spei_name))
     if verbose:
         print(f"[SPEI-fcst] saved {spei_name}", flush=True)
+
+    # The fitted log-logistic parameters for this window, one set per grid
+    # point (no member or year axis: the fit is pooled over both).
+    par_name = f"fitparams_{stem}.nc"
+    par_ds.to_netcdf(os.path.join(out_dir, par_name))
+    if verbose:
+        print(f"[SPEI-fcst] saved {par_name}", flush=True)
 
     return spei_name
 

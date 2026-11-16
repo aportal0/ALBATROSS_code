@@ -4,15 +4,18 @@ Plot ET0 and SPEI from monthly NetCDF files, plus SPEI forecasts.
 
 - ET0 is plotted for the selected month/year.
 - SPEI is assumed to be already accumulated on WINDOW months.
-- SPEI forecasts come from a hindcast/forecast file with an
-  initialization date and a lead time; the ensemble mean or a single
-  ensemble member can be plotted.
+- SPEI forecasts come from a hindcast file (C3S seasonal, ECMWF 51) that holds
+  one lead time per file, with an ensemble ("number") and an initialization-year
+  coordinate ("init_year"). The ensemble mean or a single ensemble member can be
+  plotted.
+- SOURCE picks what is plotted: "obs" (ERA5-Land observations) or
+  "forecast" (C3S seasonal). Both routes go through plot_spei_source().
 - The script writes:
     1) ET0 figure
     2) SPEI figure
     3) combined ET0 + SPEI figure
-    4) one SPEI forecast figure per lead time
-    5) one SPEI forecast figure with all leads side by side
+    4) one SPEI forecast figure, ensemble mean or single member
+    5) one SPEI forecast figure with the ensemble mean and single members
 """
 
 import calendar
@@ -29,27 +32,59 @@ from matplotlib.ticker import MaxNLocator
 # =============================================================================
 # Configuration
 # =============================================================================
+
+# -----------------------------------------------------------------------------
+# Source: observations or seasonal forecast
+# -----------------------------------------------------------------------------
+# "obs"      -> the monthly observation file (PATH_SPEI)
+# "forecast" -> the C3S seasonal forecast file (PATH_FORECAST)
+SOURCE = "obs"
+
+# Both are also reachable directly, whatever SOURCE says:
+#   plot_spei_source(source="forecast", window=3, year=2022)
+#   plot_spei_source(source="obs", window=3, month=12, year=2022)
+
+
+# -----------------------------------------------------------------------------
+# Obs configuration
+# -----------------------------------------------------------------------------
 VAR_ET0 = "ET0"
 VAR_SPEI = "SPEI"      # change if your variable is named differently
 VAR_PR = "precipitation"
 VAR_WB = "balance"
 
 METHOD = "MH"             # "H" or "MH"
-MONTH = 12
-WINDOWS = [1,3,6,12]
-YEAR = 2022             # year (int) or "clim" (str)
+MONTH = 1
+WINDOWS = [3]
+YEAR = 2022              # year (int) or "clim" (str)
 COUNTRY = "Madagascar"
 
 PATH_ET0 = Path("/home/alice/Desktop/UniBo/data/ERA5-Land/ET0/monthly/")
 PATH_SPEI = Path("/home/alice/Desktop/UniBo/data/ERA5-Land/SPEI/monthly/")
-PATH_PR = PATH_ET0
+PATH_PR = Path("/home/alice/Desktop/UniBo/data/MSWEP/MSWEP_V316_test/Past/Monthly/regridded_ERA5-Land/")
 PATH_WB = PATH_SPEI
 PATH_OUT = Path("/home/alice/Desktop/UniBo/figures/SPEI/")
+
 
 # -----------------------------------------------------------------------------
 # Forecast configuration
 # -----------------------------------------------------------------------------
-PATH_FORECAST = Path("/home/alice/Desktop/UniBo/data/ERA5-Land/SPEI/forecast/")
+# The method tag used inside the forecast file name ("Mod-Hargreaves",
+# "Hargreaves", ...). Kept separate from METHOD_INFO labels because the file
+# says "Mod-Hargreaves" while the label says "Modified Hargreaves".
+FORECAST_METHOD_TAG = "Mod-Hargreaves"
+# Short model tag for the output file names, e.g. ..._ensmean_ecmwf51_init102024_.
+FORECAST_MODEL_TAG = "ecmwf51"
+FORECAST_LEADS_TAG = "123"      # the "lead123" part of the file name
+
+FORECAST_Y0 = 1993
+FORECAST_Y1 = 2025
+
+FORECAST_YEAR = 1999            # initialization year to plot
+FORECAST_INIT_MONTH = 10        # "init10" -> October initialization
+
+# Paths
+PATH_FORECAST = Path(f"/home/alice/Desktop/UniBo/data/C3S_seasonal/{FORECAST_MODEL_TAG}/monthly/init_{FORECAST_INIT_MONTH}/SPEI/")
 
 # File template. Placeholders: {method} {leads} {init} {y0} {y1} {country}
 FILE_FORECAST = (
@@ -57,40 +92,30 @@ FILE_FORECAST = (
     "_res_ERA5-Land_qdm_ERA5-Land_MSWEP.nc"
 )
 
-# The method tag used inside the forecast file name ("Mod-Hargreaves",
-# "Hargreaves", ...). Kept separate from METHOD_INFO labels because the file
-# says "Mod-Hargreaves" while the label says "Modified Hargreaves".
-FORECAST_METHOD_TAG = "Mod-Hargreaves"
-FORECAST_LEADS_TAG = "123"      # the "lead123" part of the file name
-
-FORECAST_Y0 = 1993
-FORECAST_Y1 = 2025
-
-FORECAST_YEAR = 2022            # initialization year to plot
-FORECAST_INIT_MONTH = 10        # "init10" -> October initialization
-FORECAST_LEADS = [1, 2, 3]      # lead months to plot
-
 # "mean"  -> ensemble mean
 # "member" -> one ensemble member (FORECAST_MEMBER)
 FORECAST_MODE = "mean"
 FORECAST_MEMBER = 0
 
-# The forecast window: SPEI accumulated over N months (the file suffix does not
-# always carry it, so it is set here only for labels). Set to None to leave the
-# label generic ("SPEI forecast").
+# The forecast window: SPEI accumulated over N months. The file name does not
+# carry it, so it is set here for the labels. Set to None to leave the label
+# generic ("SPEI forecast"). Keep it in step with the file you point at.
 FORECAST_WINDOW = 3
 
-# Map each lead to the valid calendar month of the target field
-# (valid = init month + lead). If False, the lead index is used as-is and the
-# title shows only the lead.
-FORECAST_USE_VALID_MONTH = True
+# Colour scale for the ENSEMBLE MEAN figures: 0.2-wide bands from -0.9 to
+# +0.9, so the mean's weak anomalies stay readable instead of sitting in one
+# neutral cell. Values outside the range use the over/under colours. The
+# observation figures and the individual members keep the full +/-2.5 scale.
+FORECAST_COMPARE_SCALE = True
 
 # Print the file structure once (dims, coords, variables) before plotting.
 FORECAST_DEBUG = True
 
-# If the ensemble-member dimension cannot be found, still plot the ensemble
-# mean instead of raising.
-FORECAST_FALLBACK_TO_MEAN = True
+# The comparison figure: the ensemble mean plus these members, side by side.
+# Drawn by main_forecast() unless FORECAST_COMPARE is off.
+FORECAST_COMPARE = True
+FORECAST_COMPARE_MEMBERS = [0, 1, 2, 3]
+FORECAST_COMPARE_INCLUDE_MEAN = True
 
 
 # =============================================================================
@@ -101,34 +126,27 @@ MONTHS = list(calendar.month_abbr)[1:]
 METHOD_INFO = {
     "H": {
         "label": "Hargreaves",
-        "file_ET0": "ET0_Hargreaves_monthly_1993-2024_{country}.nc",
-        "file_SPEI": "SPEI_Hargreaves_{window}m_1993-2024_{country}.nc",
-        "file_precipitation": "precip_monthly_1993-2024_{country}.nc",
-        "file_balance": "water-balance_Hargreaves_monthly_1993-2024_{country}.nc",
+        "file_ET0": "ET0_Hargreaves_monthly_1993-2026_{country}.nc",
+        "file_SPEI": "SPEI_Hargreaves_{window}m_1993-2026_{country}.nc",
+        "file_precipitation": "precip_monthly_1993-2026_{country}.nc",
+        "file_balance": "water-balance_Hargreaves_monthly_1993-2026_{country}.nc",
     },
     "MH": {
         "label": "Modified Hargreaves",
-        "file_ET0": "ET0_Mod-Hargreaves_monthly_1993-2024_{country}.nc",
-        "file_SPEI": "SPEI_Mod-Hargreaves_{window}m_1993-2024_{country}.nc",
-        "file_precipitation": "precip_monthly_1993-2024_{country}.nc",
-        "file_balance": "water-balance_Mod-Hargreaves_monthly_1993-2024_{country}.nc",
+        "file_ET0": "ET0_Mod-Hargreaves_monthly_1993-2026_{country}.nc",
+        "file_SPEI": "SPEI_Mod-Hargreaves_{window}m_1993-2026_{country}.nc",
+        "file_precipitation": "precip_monthly_1993-2026_{country}.nc",
+        "file_balance": "water-balance_Mod-Hargreaves_monthly_1993-2026_{country}.nc",
     },
 }
 
-# Candidate names for the dimensions of a forecast file. The first one that is
-# present in the dataset wins; add your own naming here if yours differs.
-MEMBER_DIM_CANDIDATES = (
-    "member", "members", "ensemble", "ens", "realization", "realizations",
-    "number", "r", "m",
-)
-LEAD_DIM_CANDIDATES = (
-    "lead", "lead_time", "leadtime", "forecast_time", "step", "lead_month",
-    "lead_months", "l",
-)
-INIT_DIM_CANDIDATES = (
-    "init", "init_time", "initialization", "initialization_time", "time",
-    "forecast_reference_time", "reference_time", "s", "date",
-)
+# Dimension / coordinate names in the forecast file.
+MEMBER_DIM = "number"        # ensemble-member dimension
+INIT_YEAR_DIM = "init_year"  # initialization-year coordinate
+
+# Set to the name of a lead dimension ONLY if your file ever holds several leads
+# at once. With "lead123" files there is no lead dimension and this stays None.
+LEAD_DIM = None
 
 
 # =============================================================================
@@ -193,21 +211,33 @@ def build_forecast_file(
     return path / name
 
 
-def build_output_file_forecast(country, method, lead, year, init_month, mode, window=None):
-    window_tag = f"SPEI{window}" if window else "SPEI"
-    mode_tag = "ensmean" if mode == "mean" else "ensmem"
+def build_output_file_obs(window, year, month, country=COUNTRY, method=METHOD):
+    """Output path of a single-window observation figure."""
+    return PATH_OUT / f"SPEI_{method}_{window}m_{year}{month:02d}_{country}.png"
+
+
+def build_output_file_forecast(country, method, year, mode, member,
+                               window=None, init_month=None,
+                               model_tag=FORECAST_MODEL_TAG):
+    """Output path of a forecast figure, e.g.
+    SPEI_MH_3m_lead123_ensmean_ecmwf51_init102024_Madagascar.png
+    """
+    window_tag = f"{window}m" if window else "Nm"
+    mode_tag = "ensmean" if mode == "mean" else f"member{member}"
     return PATH_OUT / (
-        f"{window_tag}-forecast_{method}_{mode_tag}_"
-        f"init{init_month:02d}{year}_lead{lead}_{country}.png"
+        f"SPEI_{method}_{window_tag}_lead{FORECAST_LEADS_TAG}_{mode_tag}_"
+        f"{model_tag}_init{init_month:02d}{year}_{country}.png"
     )
 
 
-def build_output_file_forecast_panels(country, method, year, init_month, mode, window=None):
-    window_tag = f"SPEI{window}" if window else "SPEI"
-    mode_tag = "ensmean" if mode == "mean" else "ensmem"
+def build_output_file_forecast_comparison(country, method, year,
+                                          window=None, init_month=None,
+                                          model_tag=FORECAST_MODEL_TAG):
+    """Output path of the mean-vs-members figure."""
+    window_tag = f"{window}m" if window else "Nm"
     return PATH_OUT / (
-        f"{window_tag}-forecast_{method}_{mode_tag}_"
-        f"init{init_month:02d}{year}_allleads_{country}.png"
+        f"SPEI_{method}_{window_tag}_lead{FORECAST_LEADS_TAG}_"
+        f"ensmean-members_{model_tag}_init{init_month:02d}{year}_{country}.png"
     )
 
 
@@ -271,22 +301,6 @@ def load_spei_forecast(file_path=None, var=VAR_SPEI, debug=FORECAST_DEBUG):
 # =============================================================================
 # Forecast dimension handling
 # =============================================================================
-def find_dim(da, candidates, kind="dimension"):
-    """First dimension of `da` whose name matches one of `candidates`."""
-    for name in candidates:
-        if name in da.dims:
-            return name
-    return None
-
-
-def dim_name_from_coords(ds, candidates):
-    """Same as find_dim but for dataset coords/variables (1-D only)."""
-    for name in candidates:
-        if name in ds.coords or name in ds.variables:
-            return name
-    return None
-
-
 def print_forecast_structure(ds, file_path=None):
     """Print dimensions, coordinates and variables of the forecast file."""
     print("=" * 72)
@@ -318,62 +332,43 @@ def print_forecast_structure(ds, file_path=None):
     print("=" * 72)
 
 
-def get_init_dates(da, init_dim):
-    """Datetime64 array of initialization dates along `init_dim`."""
-    init = da[init_dim]
-    values = np.asarray(init.values)
+def get_init_years(da):
+    """Initialization years along INIT_YEAR_DIM, as integers."""
+    values = np.asarray(da[INIT_YEAR_DIM].values).reshape(-1)
     if np.issubdtype(values.dtype, np.datetime64):
-        return values
-    # Non-datetime init axis (e.g. integer year): keep the raw values.
-    return values
+        return da[INIT_YEAR_DIM].dt.year.values.reshape(-1).astype(int)
+    return values.astype(int)
 
 
-def get_init_index(da, init_dim, year, init_month=None):
-    """Position of the initialization along `init_dim` for a year (and month).
+def select_init_year(da, year):
+    """Pick the field for initialization year `year` along INIT_YEAR_DIM.
 
-    Returns (index, label). Raises ValueError when nothing matches, listing the
-    initializations that are available.
+    Returns (field, year_label). Raises ValueError when the year is absent,
+    listing the years the file actually holds.
     """
-    values = get_init_dates(da, init_dim)
+    if INIT_YEAR_DIM not in da.dims:
+        raise ValueError(
+            f"Initialization coordinate '{INIT_YEAR_DIM}' not found in "
+            f"dims={list(da.dims)}. Set INIT_YEAR_DIM to the right name."
+        )
 
-    if np.issubdtype(np.asarray(values).dtype, np.datetime64):
-        times = da[init_dim].dt
-        mask = times.year == year
-        if init_month is not None:
-            mask = mask & (times.month == init_month)
-        mask = np.asarray(mask.values, dtype=bool)
-    else:
-        # Numeric init axis: assume it encodes the year.
-        mask = np.asarray(values) == year
+    years = get_init_years(da)
+    mask = years == int(year)
 
     if not mask.any():
-        if np.issubdtype(np.asarray(values).dtype, np.datetime64):
-            available = sorted(
-                {f"{int(y)}-{int(m):02d}" for y, m in
-                 zip(da[init_dim].dt.year.values, da[init_dim].dt.month.values)}
-            )
-        else:
-            available = [str(v) for v in np.asarray(values)]
         raise ValueError(
-            f"No initialization found for year={year}"
-            + (f", month={init_month}" if init_month is not None else "")
-            + f" along '{init_dim}'.\nAvailable initializations: {available}"
-            + "\nSet FORECAST_YEAR / FORECAST_INIT_MONTH accordingly."
+            f"No initialization found for year={year} along '{INIT_YEAR_DIM}'.\n"
+            f"Available years: {sorted(set(int(y) for y in years))}.\n"
+            "Set FORECAST_YEAR accordingly."
         )
 
     index = int(np.flatnonzero(mask)[0])
-    label = format_init_label(da[init_dim].isel({init_dim: index}))
-    return index, label
-
-
-def format_init_label(init_value):
-    """Human-readable initialization date, e.g. 'Oct 2022'."""
-    values = np.asarray(init_value.values)
-    if values.size and np.issubdtype(values.dtype, np.datetime64):
-        month = int(init_value.dt.month.values.reshape(-1)[0])
-        year = int(init_value.dt.year.values.reshape(-1)[0])
-        return f"{MONTHS[month - 1]} {year}"
-    return str(values.reshape(-1)[0])
+    if mask.sum() > 1:
+        print(
+            f"  warning: {int(mask.sum())} entries for {year} along "
+            f"'{INIT_YEAR_DIM}'; using the first one."
+        )
+    return da.isel({INIT_YEAR_DIM: index}), str(int(year))
 
 
 # =============================================================================
@@ -435,141 +430,79 @@ def window_mean_or_sum_ending_month(da, month, window, year, l_stats):
 # =============================================================================
 # Forecast selectors
 # =============================================================================
-def select_spei_forecast(
-    da,
-    year=FORECAST_YEAR,
-    init_month=FORECAST_INIT_MONTH,
-    lead=1,
-    mode=FORECAST_MODE,
-    member=FORECAST_MEMBER,
-):
-    """Extract the forecast field for one initialization year and lead.
+def select_spei_forecast(da, year=FORECAST_YEAR, mode=FORECAST_MODE, member=FORECAST_MEMBER):
+    """Extract the forecast field for one initialization year.
+
+    The file holds a single lead time, so nothing is selected along a lead
+    dimension: the field already is the one the lead in the file name refers to.
 
     Parameters
     ----------
     da : xarray.DataArray
-        SPEI forecast with an ensemble-member dim, a lead dim and an
-        initialization dim.
-    year, init_month : int
-        Which initialization to use.
-    lead : int
-        Lead time in months (as written in the file, 1-based lead index).
+        SPEI forecast with an ensemble dimension ('number') and an
+        initialization-year coordinate ('init_year').
+    year : int
+        Which initialization year to use.
     mode : {"mean", "member"}
         Ensemble mean or a single member.
     member : int
-        Member index or member coordinate value, used when mode == "member".
+        Ensemble-member value (as in the 'number' coordinate), used when
+        mode == "member".
 
     Returns
     -------
     (result, info) where result is a 2-D DataArray and info a dict with
-    'init_label', 'lead', 'valid_label', 'mode_label'.
+    'init_label' and 'mode_label'.
     """
     mode = str(mode).lower()
     if mode not in ("mean", "member"):
         raise ValueError("mode must be 'mean' or 'member'")
 
-    init_dim = find_dim(da, INIT_DIM_CANDIDATES)
-    if init_dim is None:
-        raise ValueError(
-            f"No initialization dimension found in dims={list(da.dims)}. "
-            f"Add its name to INIT_DIM_CANDIDATES."
-        )
-    lead_dim = find_dim(da, LEAD_DIM_CANDIDATES)
-    member_dim = find_dim(da, MEMBER_DIM_CANDIDATES)
+    selected, init_label = select_init_year(da, year)
 
-    init_index, init_label = get_init_index(da, init_dim, year, init_month)
-    selected = da.isel({init_dim: init_index})
-
-    # --- lead -----------------------------------------------------------
-    valid_label = None
-    if lead_dim is not None:
-        selected, valid_label = select_lead(selected, lead_dim, lead)
-    elif lead != 1:
-        raise ValueError(
-            f"No lead dimension found in dims={list(da.dims)}, but lead={lead} "
-            "was requested. Add its name to LEAD_DIM_CANDIDATES."
-        )
+    # --- a lead dimension, only if this file happens to have one --------
+    if LEAD_DIM is not None and LEAD_DIM in selected.dims:
+        selected = selected.isel({LEAD_DIM: 0})
 
     # --- ensemble -------------------------------------------------------
+    if MEMBER_DIM not in selected.dims:
+        raise ValueError(
+            f"Ensemble dimension '{MEMBER_DIM}' not found in "
+            f"dims={list(selected.dims)}. Set MEMBER_DIM to the right name."
+        )
+
     mode_label = "ensemble mean"
     if mode == "member":
-        if member_dim is None:
-            if not FORECAST_FALLBACK_TO_MEAN:
-                raise ValueError(
-                    f"No ensemble-member dimension found in dims={list(da.dims)}. "
-                    "Add its name to MEMBER_DIM_CANDIDATES, or set "
-                    "FORECAST_MODE='mean'."
-                )
-            print(
-                "  warning: no ensemble-member dimension found "
-                f"(dims={list(da.dims)}); plotting the ensemble mean instead."
-            )
-        else:
-            selected = select_member(selected, member_dim, member)
-            mode_label = f"member {member}"
-    if member_dim is not None and mode == "mean":
-        selected = selected.mean(dim=member_dim, skipna=True)
+        selected = select_member(selected, member)
+        mode_label = f"member {member}"
+    else:
+        selected = selected.mean(dim=MEMBER_DIM, skipna=True)
 
     if selected.ndim != 2:
         raise ValueError(
             f"Expected a 2-D field after selection, got dims={list(selected.dims)}. "
-            "Check FORECAST_LEADS / MEMBER_DIM_CANDIDATES and the file structure."
+            "Check the forecast file structure."
         )
 
     info = {
         "init_label": init_label,
-        "lead": lead,
-        "valid_label": valid_label,
+        "init_year": int(init_label) if str(init_label).isdigit() else year,
+        "init_month": resolve_init_month(),
         "mode_label": mode_label,
-        "init_dim": init_dim,
-        "lead_dim": lead_dim,
-        "member_dim": member_dim,
     }
     return selected, info
 
 
-def select_lead(selected, lead_dim, lead):
-    """Pick one lead time. `lead` is matched on the coordinate when possible."""
-    coord = selected[lead_dim]
+def select_member(selected, member):
+    """Pick one ensemble member from the 'number' coordinate."""
+    coord = selected[MEMBER_DIM]
     values = np.asarray(coord.values)
-    valid_label = None
-
-    if np.issubdtype(values.dtype, np.datetime64):
-        index = int(np.argmin(np.abs(values - values[0])))
-        # datetime lead axis: take the position matching `lead` (1-based)
-        index = min(max(int(lead) - 1, 0), coord.size - 1)
-        valid_label = np.datetime_as_string(values[index], unit="D")
-    else:
-        numeric = values.astype(float) if values.dtype.kind in "iuf" else None
-        if numeric is not None and np.isin(float(lead), numeric):
-            index = int(np.flatnonzero(numeric == float(lead))[0])
-        else:
-            index = min(max(int(lead) - 1, 0), coord.size - 1)
-
-    return selected.isel({lead_dim: index}), valid_label
-
-
-def select_member(selected, member_dim, member):
-    """Pick one ensemble member, by coordinate value when it exists."""
-    coord = selected[member_dim]
-    values = np.asarray(coord.values)
-    if np.isin(member, values):
-        return selected.sel({member_dim: member})
-    if values.dtype.kind in "iuf" and np.isin(float(member), values.astype(float)):
-        index = int(np.flatnonzero(values.astype(float) == float(member))[0])
-        return selected.isel({member_dim: index})
-    if 0 <= int(member) < coord.size:
-        return selected.isel({member_dim: int(member)})
-    raise ValueError(
-        f"Member {member} not found along '{member_dim}' "
-        f"(size={coord.size}, values={list(values[:10])})."
-    )
-
-
-def valid_month_label(init_month, lead):
-    """Calendar month reached by adding `lead` months to the init month."""
-    month = (int(init_month) + int(lead) - 1) % 12 + 1
-    return MONTHS[month - 1]
+    if not np.isin(member, values):
+        raise ValueError(
+            f"Member {member} not found along '{MEMBER_DIM}' "
+            f"(size={coord.size}, values={list(values[:10])})."
+        )
+    return selected.sel({MEMBER_DIM: member})
 
 
 # =============================================================================
@@ -614,34 +547,75 @@ def build_title_combo(method, month, window, year):
     return f"ET0, SPEI-{window}, P, WB - {method_label}\n{window_label}, {period}"
 
 
-def build_title_spei_forecast(method, info, init_month, window=None):
-    """Title for a single-lead SPEI forecast map."""
+def spei_label(window=None):
+    """Label for the SPEI variable, e.g. 'SPEI-3' or plain 'SPEI'."""
+    return f"SPEI-{window}" if window else "SPEI"
+
+
+def build_lead_label(leads_tag=FORECAST_LEADS_TAG):
+    """Lead part of a title, e.g. 'lead 1,2,3' or 'lead 3'."""
+    if not leads_tag:
+        return "lead unknown"
+    months = str(leads_tag)
+    if len(months) > 1:
+        return f"lead {', '.join(months)}"
+    return f"lead {months}"
+
+
+def build_title_spei_source(source, method, window=None, mode_label=None,
+                            init_label=None, month=None, year=None):
+    """Title shared by the observation and the forecast SPEI map."""
     method_label = METHOD_INFO[method]["label"]
-    spei_label = f"SPEI-{window}" if window else "SPEI"
-    lead = info["lead"]
-
-    if info["valid_label"]:
-        lead_label = f"lead {lead} (valid {info['valid_label']})"
-    elif FORECAST_USE_VALID_MONTH:
-        lead_label = f"lead {lead} ({valid_month_label(init_month, lead)})"
-    else:
-        lead_label = f"lead {lead}"
-
+    if str(source).lower() == "forecast":
+        return (
+            f"{spei_label(window)} forecast - {method_label}\n"
+            f"{init_label}, {build_lead_label()}\n"
+            f"{mode_label}"
+        )
     return (
-        f"{spei_label} forecast - {method_label}\n"
-        f"init {info['init_label']}, {lead_label}\n"
-        f"{info['mode_label']}"
+        f"{spei_label(window)} - {method_label}\n"
+        f"{build_period_label(month, year)}, observations"
     )
 
 
-def build_title_spei_forecast_panels(method, init_label, mode_label, init_month, leads, window=None):
+def resolve_init_month(init_month=None):
+    """Which month the forecast file is initialized in.
+
+    Explicit argument first, then the init_<month> folder the file lives in,
+    then FORECAST_INIT_MONTH.
+    """
+    if init_month is not None:
+        return int(init_month)
+    for part in reversed(PATH_FORECAST.parts):
+        if part.startswith("init_"):
+            tail = part[len("init_"):]
+            if tail.isdigit() and 1 <= int(tail) <= 12:
+                return int(tail)
+    return int(FORECAST_INIT_MONTH)
+
+
+def build_init_label(year, init_month=None, style="long"):
+    """Initialization label, e.g. 'init Oct 2022' or 'init102022'."""
+    month = resolve_init_month(init_month)
+    if style == "tag":
+        return f"init{month:02d}{year}"
+    return f"init {MONTHS[month - 1]} {year}"
+
+
+def build_init_sentence(year, init_month=None):
+    """Standalone initialization line for a title."""
+    month = resolve_init_month(init_month)
+    return f"initialized {month:02d}/{year}"
+
+
+def build_title_spei_forecast(method, info, window=None):
+    """Title for a SPEI forecast map."""
     method_label = METHOD_INFO[method]["label"]
-    spei_label = f"SPEI-{window}" if window else "SPEI"
     return (
-        f"{spei_label} forecast - {method_label}\n"
-        f"init {init_label}, leads {', '.join(str(l) for l in leads)} "
-        f"(from {MONTHS[init_month - 1]})\n"
-        f"{mode_label}"
+        f"{spei_label(window)} forecast - {method_label}\n"
+        f"{build_init_sentence(info['init_year'], info['init_month'])}, "
+        f"{build_lead_label()}\n"
+        f"{info['mode_label']}"
     )
 
 
@@ -671,13 +645,39 @@ def get_color_settings_spei():
         "#d9f0d3",  # light green
         "#78c679",  # green
         "#238b45",  # deep green
-        "#08306b"   # deeper blue
+        "#08306b"   # deper blue
     ]
 
     cmap = ListedColormap(colors)
     norm = BoundaryNorm(levels, ncolors=cmap.N, clip=False)
     # cmap = plt.colormaps["RdBu"].copy()
     # norm = BoundaryNorm(levels, ncolors=cmap.N, clip=False)
+    return cmap, norm
+
+
+def get_color_settings_spei_comparison(nbands=9):
+    """SPEI colours on the narrow ensemble-mean scale.
+
+    The bands are 0.2 wide and sit strictly inside 0, which cannot be a band
+    edge, so the palette is split in two: reds below zero, greens and blues
+    above it, with no band crossing zero.
+    """
+    edges = np.array([-1., -.8, -.6, -.4, -.2, .2, .4, .6, .8, 1.])
+
+    colors = [
+        "#b30000",  # -1 .. -0.8  extreme dry
+        "#ff7f0e",  # -0.8 .. -0.6
+        "#ffb347",  # -0.6 .. -0.4
+        "#fff7bc",  # -0.4 .. -0.2
+        "#f7f7f7",  # -0.2 .. +0.2  near normal
+        "#d9f0d3",  # +0.2 .. +0.4
+        "#78c679",  # +0.4 .. +0.6
+        "#238b45",  # +0.6 .. +0.8
+        "#08306b"   # +0.8 .. +1.  wettest  
+    ]
+
+    cmap = ListedColormap(colors)
+    norm = BoundaryNorm(edges, ncolors=cmap.N, clip=False)
     return cmap, norm
 
 
@@ -871,12 +871,115 @@ def plot_wb(da, method, month, window, year, outpath):
 # =============================================================================
 # Plot SPEI forecast
 # =============================================================================
-def plot_spei_forecast(da, method, info, init_month, outpath, window=None, lead=None):
-    """One map: SPEI forecast for a single lead time."""
-    lead = lead if lead is not None else info["lead"]
-    title = build_title_spei_forecast(method, info, init_month, window)
+def plot_spei_forecast(da, method, info, outpath, window=None):
+    """One map: the SPEI forecast, ensemble mean or a single member.
+
+    The ensemble mean is drawn on the narrow scale (FORECAST_COMPARE_SCALE),
+    a single member on the full one.
+    """
+    title = build_title_spei_forecast(method, info, window)
+
+    narrow = info["mode_label"] == "ensemble mean" and FORECAST_COMPARE_SCALE
+    cmap, norm = (
+        get_color_settings_spei_comparison() if narrow else get_color_settings_spei()
+    )
 
     lon, lat, vals = _get_lon_lat_vals(da)
+
+    fig, ax = plt.subplots(
+        figsize=(4.4, 6),
+        subplot_kw={"projection": ccrs.PlateCarree()},
+    )
+
+    im = ax.pcolormesh(
+        lon,
+        lat,
+        vals,
+        transform=ccrs.PlateCarree(),
+        cmap=cmap,
+        norm=norm,
+    )
+
+    _format_map(ax, title)
+
+    # Same bar style for the mean and for a member: identical except for the
+    # scale it carries.
+    fig.colorbar(
+        im,
+        ax=ax,
+        label=f"{spei_label(window)} (-)" + ("\nensemble mean" if narrow else ""),
+        shrink=0.8,
+        extend="both",
+    )
+
+    fig.tight_layout()
+    fig.savefig(outpath, dpi=300)
+    plt.close(fig)
+
+
+def plot_spei_source(
+    source=None,
+    window=FORECAST_WINDOW,
+    month=None,
+    year=None,
+    mode=FORECAST_MODE,
+    member=FORECAST_MEMBER,
+    outpath=None,
+    file_path=None,
+):
+    """Plot SPEI from either the observations or the seasonal forecast.
+
+    source : "obs" | "forecast" | None
+        None falls back to SOURCE in the configuration block.
+    window : int
+        SPEI accumulation window, used in the labels and the output name.
+    month, year : int
+        Observations only: which month of which year to map. They default to
+        MONTH and YEAR; a "clim" year gives the month's climatology.
+    mode, member : str, int
+        Forecast only: ensemble mean or a single member.
+    outpath : Path or None
+        Defaults to the same name the matching writer uses.
+
+    Returns the output path. The observations are plotted as stored in the
+    file, with no extra rolling, and the printed ending date says which
+    accumulation the field is.
+    """
+    source = (SOURCE if source is None else source).lower()
+    if source not in ("obs", "forecast"):
+        raise ValueError("source must be 'obs' or 'forecast'")
+
+    if source == "forecast":
+        da = load_spei_forecast(file_path=file_path)
+        field, info = select_spei_forecast(
+            da,
+            year=FORECAST_YEAR if year is None else year,
+            mode=mode,
+            member=member,
+        )
+        title = build_title_spei_source(
+            "forecast", METHOD, window=window,
+            mode_label=info["mode_label"], init_label=info["init_label"],
+        )
+        if outpath is None:
+            outpath = build_output_file_forecast(
+                COUNTRY, METHOD, info["init_year"], mode, member, window,
+                init_month=info["init_month"],
+            )
+        print_summary_forecast(outpath, info, field, window=window)
+    else:
+        month = MONTH if month is None else month
+        year = YEAR if year is None else year
+        da = load_var(VAR_SPEI, COUNTRY, METHOD, window)
+        field, time_stamp = select_month_year(da, month, year)
+        title = build_title_spei_source(
+            "obs", METHOD, window=window, month=month, year=year
+        )
+        if outpath is None:
+            outpath = build_output_file_obs(window, year, month)
+        print_summary(outpath, f"SPEI-{window}", time_stamp, field, month, year)
+
+    lon, lat, vals = _get_lon_lat_vals(field)
     cmap, norm = get_color_settings_spei()
 
     fig, ax = plt.subplots(
@@ -895,11 +998,10 @@ def plot_spei_forecast(da, method, info, init_month, outpath, window=None, lead=
 
     _format_map(ax, title)
 
-    spei_label = f"SPEI-{window}" if window else "SPEI"
     fig.colorbar(
         im,
         ax=ax,
-        label=f"{spei_label} (-)",
+        label=f"{spei_label(window)} (-)",
         shrink=0.8,
         extend="both",
     )
@@ -908,44 +1010,101 @@ def plot_spei_forecast(da, method, info, init_month, outpath, window=None, lead=
     fig.savefig(outpath, dpi=300)
     plt.close(fig)
 
+    if source == "forecast":
+        da.close() if hasattr(da, "close") else None
+    return outpath
 
-def plot_spei_forecast_panels(
+
+def collect_forecast_panels(da, members, include_mean=True, year=FORECAST_YEAR):
+    """One field per panel: ('mean'|member value, field)."""
+    panels = []
+    if include_mean:
+        field, _ = select_spei_forecast(da, year=year, mode="mean")
+        panels.append(("mean", field))
+    for member in members:
+        field, _ = select_spei_forecast(da, year=year, mode="member", member=member)
+        panels.append((member, field))
+    return panels
+
+
+def forecast_panel_title(member, mean_label="Ensemble mean"):
+    return mean_label if member == "mean" else f"Member {member}"
+
+
+def plot_spei_forecast_comparison(
     da,
     method,
     year,
-    init_month,
-    leads,
-    mode=FORECAST_MODE,
-    member=FORECAST_MEMBER,
+    members=None,
+    include_mean=True,
     outpath=None,
     window=None,
+    wspace=0.6,
+    bar_width=0.022,
+    bar_pad=0.03,
 ):
-    """All leads of one initialization side by side, sharing one colorbar."""
-    leads = list(leads)
-    if not leads:
-        raise ValueError("leads must not be empty")
+    """Ensemble mean and/or single members side by side.
 
-    ncols = len(leads)
-    cmap, norm = get_color_settings_spei()
-    spei_label = f"SPEI-{window}" if window else "SPEI"
+    `members` defaults to FORECAST_COMPARE_MEMBERS, which is what
+    FORECAST_COMPARE_MEAN is added to when it is on.
 
+    The ensemble mean is drawn on the narrow scale and each member on the full
+    one, so the figure carries up to two scales and each scale gets its own
+    colourbar, built the same way for both: for the mean the arrow marks values
+    above +0.9, for a member above +2.5.
+
+    Every panel keeps the same width whether or not it carries a bar: the bars
+    are drawn in axes of their own, placed in the gutter to the right of the
+    panel they describe. Panels therefore stay the same shape and line up in a
+    row, which narrowing one of them in place would not do.
+    """
+    if members is None:
+        members = list(FORECAST_COMPARE_MEMBERS)
+    members = list(members)
+    if not members:
+        raise ValueError("No ensemble members selected for the summary figure.")
+
+    panels = collect_forecast_panels(da, members, include_mean=include_mean, year=year)
+    if not panels:
+        raise ValueError(
+            "Nothing to plot: give at least one member or set include_mean=True."
+        )
+
+    # One scale per bar: the mean can have its own, the members share the other.
+    scales = [
+        ("ensemble mean", get_color_settings_spei_comparison()),
+        ("members", get_color_settings_spei()),
+    ]
+
+    groups = {}
+    for member, field in panels:
+        is_mean = member == "mean"
+        index = 0 if (is_mean and FORECAST_COMPARE_SCALE) else 1
+        groups.setdefault(index, []).append((member, field))
+
+    ncols = len(panels)
+    panel_width = 4.0
+    panel_height = 6.0
+    bar_height = 0.02          # bar thickness, as a fraction of figure height
+    bar_span = 0.12            # how far the ends overhang their panel, per side
+
+    # The bars go underneath the panels, so the maps keep the full height and
+    # the figure is taller by the strip the bars need.
+    fig_height = panel_height * (1.0 + bar_height) + 1.1
     fig, axes = plt.subplots(
         nrows=1,
         ncols=ncols,
-        figsize=(4.0 * ncols, 6),
+        figsize=(panel_width * ncols, fig_height),
         subplot_kw={"projection": ccrs.PlateCarree()},
     )
     axes = np.atleast_1d(axes)
 
-    info_last = None
-    for ax, lead in zip(axes, leads):
-        field, info = select_spei_forecast(
-            da, year=year, init_month=init_month, lead=lead, mode=mode, member=member
-        )
-        info_last = info
+    for ax, (member, field) in zip(axes, panels):
+        is_mean = member == "mean"
+        cmap, norm = scales[0 if (is_mean and FORECAST_COMPARE_SCALE) else 1][1]
 
         lon, lat, vals = _get_lon_lat_vals(field)
-        im = ax.pcolormesh(
+        ax.pcolormesh(
             lon,
             lat,
             vals,
@@ -953,37 +1112,53 @@ def plot_spei_forecast_panels(
             cmap=cmap,
             norm=norm,
         )
+        _format_map(ax, f"{spei_label(window)} - {forecast_panel_title(member)}")
 
-        if info["valid_label"]:
-            lead_label = f"lead {lead} (valid {info['valid_label']})"
-        elif FORECAST_USE_VALID_MONTH:
-            lead_label = f"lead {lead} ({valid_month_label(init_month, lead)})"
-        else:
-            lead_label = f"lead {lead}"
-        _format_map(ax, f"{spei_label}\n{lead_label}")
+    # One bar per scale, drawn the same way for the mean and for the members:
+    # horizontal, same length, same thickness, each in axes of its own in the
+    # strip below the first panel that uses it. Its ticks and label sit below
+    # the bar, never on top of a map.
+    fig.canvas.draw()
+    fig.subplots_adjust(bottom=0.28)
+    for index in (0, 1):
+        group = groups.get(index)
+        if not group:
+            continue
+        label, (cmap, norm) = scales[index]
+        target = axes[panels.index(group[0])]
+        position = target.get_position()
 
-    title = build_title_spei_forecast_panels(
-        method,
-        info_last["init_label"],
-        info_last["mode_label"],
-        init_month,
-        leads,
-        window=window,
-    )
-    fig.suptitle(title)
+        bar_ax = fig.add_axes([0.0, 0.0, 0.1, bar_height])
+        bar = fig.colorbar(
+            plt.cm.ScalarMappable(cmap=cmap, norm=norm),
+            cax=bar_ax,
+            orientation="horizontal",
+            extend="both",
+        )
+        bar.outline.set_visible(False)
 
-    fig.colorbar(
-        im,
-        ax=list(axes),
-        label=f"{spei_label} (-)",
-        shrink=0.8,
-        extend="both",
+        # A full bar thickness plus a margin below the panel, so neither the
+        # bar nor its tick labels reach the map above it. In width the bar
+        # overhangs the panel by bar_span per side, so it reads wider than the
+        # map it belongs to without thinning the map or crowding a neighbour.
+        margin = 0.09
+        bar_ax.set_position(
+            [
+                position.x0 - position.width * bar_span,
+                position.y0 - bar_height - margin,
+                position.width * (1.0 + 2.0 * bar_span),
+                bar_height,
+            ]
+        )
+        bar.set_label(f"{spei_label(window)} (-), {label}")
+
+    fig.suptitle(
+        f"{spei_label(window)} forecast - {METHOD_INFO[method]['label']}\n"
+        f"{build_init_sentence(year)}, {build_lead_label()}"
     )
 
     fig.savefig(outpath, dpi=300, bbox_inches="tight")
     plt.close(fig)
-    return info_last
-
 
 # =============================================================================
 # Plot combined figure
@@ -1074,11 +1249,11 @@ def print_summary(file_out, label, time_stamp, result, month=None, year=None):
 def print_summary_forecast(file_out, info, result, window=None):
     lon_name = "lon" if "lon" in result.coords else "longitude"
     lat_name = "lat" if "lat" in result.coords else "latitude"
-    spei_label = f"SPEI-{window}" if window else "SPEI"
     print(f"Wrote {file_out}")
-    print(f"  field  : {spei_label} forecast, {info['mode_label']}")
-    print(f"  init   : {info['init_label']}")
-    print(f"  lead   : {info['lead']}" + (f" (valid {info['valid_label']})" if info["valid_label"] else ""))
+    print(f"  field  : {spei_label(window)} forecast, {info['mode_label']}")
+    print(f"  init   : {MONTHS[info['init_month'] - 1]} {info['init_year']} "
+          f"(init{info['init_month']:02d}/{info['init_year']})")
+    print(f"  lead   : {build_lead_label()}")
     print(f"  shape  : {lat_name}={result.sizes[lat_name]}, {lon_name}={result.sizes[lon_name]}")
     print(
         f"  range  : "
@@ -1091,6 +1266,19 @@ def print_summary_forecast(file_out, info, result, window=None):
 # Main
 # =============================================================================
 def main():
+    """Everything in one run, driven by SOURCE.
+
+    SOURCE = "obs"      -> the observation figures
+    SOURCE = "forecast" -> the forecast figure, plus the member comparison
+                           figure when FORECAST_COMPARE is on
+    """
+    if str(SOURCE).lower() == "forecast":
+        main_forecast()
+    else:
+        main_observations()
+
+
+def main_observations():
     PATH_OUT.mkdir(parents=True, exist_ok=True)
 
     for window in WINDOWS:
@@ -1125,52 +1313,58 @@ def main():
 
 def main_forecast(
     year=FORECAST_YEAR,
-    init_month=FORECAST_INIT_MONTH,
-    leads=FORECAST_LEADS,
     mode=FORECAST_MODE,
     member=FORECAST_MEMBER,
     window=FORECAST_WINDOW,
+    compare=None,
+    members=None,
     file_path=None,
 ):
-    """Plot the SPEI forecast for one initialization, one figure per lead plus
-    one figure with every lead side by side."""
+    """Plot the SPEI forecast for one initialization year.
+
+    Writes one figure — the ensemble mean or a single member, depending on
+    `mode` — and, when `compare` is on, a second figure with the ensemble mean
+    and several members side by side. The lead time is fixed by the file
+    (FORECAST_LEADS_TAG) and appears in the titles.
+    """
     PATH_OUT.mkdir(parents=True, exist_ok=True)
 
+    compare = FORECAST_COMPARE if compare is None else compare
     da = load_spei_forecast(file_path=file_path)
 
-    # One figure per lead.
-    for lead in leads:
-        field, info = select_spei_forecast(
-            da, year=year, init_month=init_month, lead=lead, mode=mode, member=member
-        )
-        outpath = build_output_file_forecast(
-            COUNTRY, METHOD, lead, year, init_month, mode, window
-        )
-        plot_spei_forecast(field, METHOD, info, init_month, outpath, window=window)
-        print_summary_forecast(outpath, info, field, window=window)
+    # The chosen field: ensemble mean or one member.
+    field, info = select_spei_forecast(da, year=year, mode=mode, member=member)
+    init_month = resolve_init_month()
+    outpath = build_output_file_forecast(
+        COUNTRY, METHOD, year, mode, member, window, init_month=init_month
+    )
+    plot_spei_forecast(field, METHOD, info, outpath, window=window)
+    print_summary_forecast(outpath, info, field, window=window)
 
-    # One figure with all leads.
-    outpath_panels = build_output_file_forecast_panels(
-        COUNTRY, METHOD, year, init_month, mode, window
-    )
-    info_last = plot_spei_forecast_panels(
-        da,
-        METHOD,
-        year,
-        init_month,
-        leads,
-        mode=mode,
-        member=member,
-        outpath=outpath_panels,
-        window=window,
-    )
-    print(f"Wrote {outpath_panels}")
-    print(f"  field  : SPEI forecast, {info_last['mode_label']}, leads {leads}")
+    # Optional: ensemble mean against individual members.
+    if compare:
+        outpath_cmp = build_output_file_forecast_comparison(
+            COUNTRY, METHOD, year, window, init_month=init_month
+        )
+        plot_spei_forecast_comparison(
+            da,
+            METHOD,
+            year,
+            members=members,
+            include_mean=FORECAST_COMPARE_INCLUDE_MEAN,
+            outpath=outpath_cmp,
+            window=window,
+        )
+        print(f"Wrote {outpath_cmp}")
+        print(
+            "  field  : SPEI forecast, "
+            + ("ensemble mean + " if FORECAST_COMPARE_INCLUDE_MEAN else "")
+            + f"members {list(FORECAST_COMPARE_MEMBERS) if members is None else list(members)}"
+        )
 
     da.close() if hasattr(da, "close") else None
 
 
 if __name__ == "__main__":
     main()
-    main_forecast()
 
