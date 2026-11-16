@@ -38,7 +38,7 @@ from matplotlib.ticker import MaxNLocator
 # -----------------------------------------------------------------------------
 # "obs"      -> the monthly observation file (PATH_SPEI)
 # "forecast" -> the C3S seasonal forecast file (PATH_FORECAST)
-SOURCE = "obs"
+SOURCE = "forecast"
 
 # Both are also reachable directly, whatever SOURCE says:
 #   plot_spei_source(source="forecast", window=3, year=2022)
@@ -80,7 +80,7 @@ FORECAST_LEADS_TAG = "123"      # the "lead123" part of the file name
 FORECAST_Y0 = 1993
 FORECAST_Y1 = 2025
 
-FORECAST_YEAR = 1999            # initialization year to plot
+FORECAST_YEAR = 2021            # initialization year to plot
 FORECAST_INIT_MONTH = 10        # "init10" -> October initialization
 
 # Paths
@@ -226,7 +226,7 @@ def build_output_file_forecast(country, method, year, mode, member,
     mode_tag = "ensmean" if mode == "mean" else f"member{member}"
     return PATH_OUT / (
         f"SPEI_{method}_{window_tag}_lead{FORECAST_LEADS_TAG}_{mode_tag}_"
-        f"{model_tag}_init{init_month:02d}{year}_{country}.png"
+        f"{model_tag}_init{year}{init_month:02d}_{country}.png"
     )
 
 
@@ -237,7 +237,7 @@ def build_output_file_forecast_comparison(country, method, year,
     window_tag = f"{window}m" if window else "Nm"
     return PATH_OUT / (
         f"SPEI_{method}_{window_tag}_lead{FORECAST_LEADS_TAG}_"
-        f"ensmean-members_{model_tag}_init{init_month:02d}{year}_{country}.png"
+        f"ensmean-members_{model_tag}_init{year}{init_month:02d}_{country}.png"
     )
 
 
@@ -471,6 +471,10 @@ def select_spei_forecast(da, year=FORECAST_YEAR, mode=FORECAST_MODE, member=FORE
             f"dims={list(selected.dims)}. Set MEMBER_DIM to the right name."
         )
 
+    # Read the member count while the dimension is still there: the mean
+    # collapses it, and the title reports it as "ensemble {n}/mean".
+    n_members = int(selected.sizes[MEMBER_DIM])
+
     mode_label = "ensemble mean"
     if mode == "member":
         selected = select_member(selected, member)
@@ -489,6 +493,7 @@ def select_spei_forecast(da, year=FORECAST_YEAR, mode=FORECAST_MODE, member=FORE
         "init_year": int(init_label) if str(init_label).isdigit() else year,
         "init_month": resolve_init_month(),
         "mode_label": mode_label,
+        "n_members": n_members,
     }
     return selected, info
 
@@ -508,34 +513,43 @@ def select_member(selected, member):
 # =============================================================================
 # Titles
 # =============================================================================
-def build_period_label(month, year):
+def build_period_label(month, year, window):
+    """Period covered by a window ending in `month`, e.g. 'Oct-Dec 2022'.
+
+    window : int
+        Window length in months. 1 gives a single month.
+    """
+    start_month = ((12 + month - window) % 12)
     if is_climatology_year(year):
-        return f"{MONTHS[month - 1]} climatology"
-    return f"{MONTHS[month - 1]} {year}"
+        return f"{MONTHS[start_month]}-{MONTHS[month - 1]} climatology"
+    if 12  + month - window < 12:
+    	return f"{MONTHS[start_month]} {year-1} - {MONTHS[month - 1]} {year}"
+    else:
+        return f"{MONTHS[start_month]} - {MONTHS[month - 1]} {year}"    
 
 
 def build_title_et0(method, month, window, year):
     method_label = METHOD_INFO[method]["label"]
-    period = build_period_label(month, year)
+    period = build_period_label(month, year, window)
     window_label = "single month" if window == 1 else f"{window}-month mean"
     return f"ET0 - {method_label}\n{window_label}, {period}"
 
 
 def build_title_spei(method, month, window, year):
     method_label = METHOD_INFO[method]["label"]
-    period = build_period_label(month, year)
+    period = build_period_label(month, year, window)
     return f"SPEI-{window} - {method_label}\n{period}"
 
 
 def build_title_pr(month, window, year):
-    period = build_period_label(month, year)
+    period = build_period_label(month, year, window)
     window_label = "single month" if window == 1 else f"{window}-month mean"
     return f"Precipitation\n {window_label}, {period}"
 
 
 def build_title_wb(method, month, window, year):
     method_label = METHOD_INFO[method]["label"]
-    period = build_period_label(month, year)
+    period = build_period_label(month, year, window)
     window_label = "single month" if window == 1 else f"{window}-month mean"
     return f"Water balance - {method_label}\n{window_label}, {period}"
 
@@ -574,7 +588,7 @@ def build_title_spei_source(source, method, window=None, mode_label=None,
         )
     return (
         f"{spei_label(window)} - {method_label}\n"
-        f"{build_period_label(month, year)}, observations"
+        f"{build_period_label(month, year, window)}, observations"
     )
 
 
@@ -608,14 +622,59 @@ def build_init_sentence(year, init_month=None):
     return f"initialized {month:02d}/{year}"
 
 
-def build_title_spei_forecast(method, info, window=None):
-    """Title for a SPEI forecast map."""
+def build_forecast_title_lines(method, info=None, window=None, year=None,
+                               init_month=None, mode_label=None, member=None,
+                               n_members=None, ensemble=None):
+    """The three forecast title lines.
+
+    SPEI-{n_months_lead} {model} - {ET0_method}
+    initialised {month}/{year} - lead {first lead}
+    {last line}
+
+    The last line names the member on a member plot and says "ensemble mean" on
+    a mean plot. Both are left empty on the comparison figure, whose panels
+    already say which one is the mean, and empty too while the kind of plot is
+    unknown.
+    """
+    if info is not None:
+        year = info["init_year"] if year is None else year
+        init_month = info["init_month"] if init_month is None else init_month
+        mode_label = info["mode_label"] if mode_label is None else mode_label
+        member = info.get("member", member) if member is None else member
+        n_members = info.get("n_members") if n_members is None else n_members
+
+    model = FORECAST_MODEL_TAG
     method_label = METHOD_INFO[method]["label"]
-    return (
-        f"{spei_label(window)} forecast - {method_label}\n"
-        f"{build_init_sentence(info['init_year'], info['init_month'])}, "
-        f"{build_lead_label()}\n"
-        f"{info['mode_label']}"
+    leads = str(FORECAST_LEADS_TAG) if FORECAST_LEADS_TAG else "?"
+
+    if ensemble is None:
+        # Comparison figure: the panels already say which one is the mean.
+        last_line = ""
+    elif member is not None or ensemble == "member":
+        last_line = f"ensemble member {member}" if member is not None else "ensemble member"
+    elif ensemble == "mean":
+        last_line = "ensemble mean"
+    else:
+        last_line = ""
+
+    lines = (
+        f"{spei_label(window)} {model} - {method_label}\n"
+        f"initialised {init_month:02d}/{year} - lead {leads[0]}"
+    )
+    return f"{lines}\n{last_line}" if last_line else lines
+
+
+def build_title_spei_forecast(method, info, window=None, member=None):
+    """Title for a SPEI forecast map, mean or the member that was selected."""
+    is_member = str(info["mode_label"]).startswith("member")
+    if member is None and is_member:
+        member = str(info["mode_label"]).split()[-1]
+    return build_forecast_title_lines(
+        method,
+        info=info,
+        window=window,
+        member=member,
+        ensemble="member" if is_member else "mean",
     )
 
 
@@ -1152,9 +1211,16 @@ def plot_spei_forecast_comparison(
         )
         bar.set_label(f"{spei_label(window)} (-), {label}")
 
+    # The comparison figure carries no last line: the panels say which is the
+    # mean and which are the members.
     fig.suptitle(
-        f"{spei_label(window)} forecast - {METHOD_INFO[method]['label']}\n"
-        f"{build_init_sentence(year)}, {build_lead_label()}"
+        build_forecast_title_lines(
+            method,
+            window=window,
+            year=year,
+            init_month=resolve_init_month(),
+            ensemble="none",
+        )
     )
 
     fig.savefig(outpath, dpi=300, bbox_inches="tight")
