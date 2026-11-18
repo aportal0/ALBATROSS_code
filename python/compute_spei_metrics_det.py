@@ -41,6 +41,7 @@ from scipy import stats
 START_YEAR = 1993
 END_YEAR   = 2025
 
+COUNTRY = "Madagascar"
 METHOD = "Mod-Hargreaves"
 INIT_MONTH   = 10          # October
 INIT_YEAR    = 1993        # first init year in the file
@@ -51,17 +52,17 @@ LEAD_STR = "".join(str(L+LEAD_OFFSET) for L in LEADS)
 
 DIR_FCST = f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/monthly/init_{INIT_MONTH}/SPEI/"
 PATH_FCST = DIR_FCST +\
-        (f"SPEI_{METHOD}_lead{LEAD_STR}_init{INIT_MONTH}_1993-2025_Madagascar_"
+        (f"SPEI_{METHOD}_lead{LEAD_STR}_init{INIT_MONTH}_1993-2025_{COUNTRY}_"
          "res_ERA5-Land_qdm_ERA5-Land_MSWEP.nc")
 DIR_OBS = "/ec/res4/scratch/ecme4047/ERA5-Land/SPEI/monthly/"
-PATH_OBS  = DIR_OBS + f"SPEI_{METHOD}_{len(LEADS)}m_1993-2026_Madagascar.nc"
+PATH_OBS  = DIR_OBS + f"SPEI_{METHOD}_{len(LEADS)}m_1993-2026_{COUNTRY}.nc"
 
 # Aggregated field verifies against the last month of the window (January for Oct init),
 # which is init month + 3.
 VERIFY_MONTH_OFFSET = LEAD_OFFSET + LEADS[-1]
 
 PATH_OUT_NC  = DIR_FCST + \
-        f"SPEI_{METHOD}_deterministic_scores_lead{LEAD_STR}_init{INIT_MONTH}_1993-2025_Madagascar.nc"
+        f"SPEI_{METHOD}_deterministic_scores_lead{LEAD_STR}_init{INIT_MONTH}_1993-2025_{COUNTRY}.nc"
 WRITE_CSV    = False          # also write the flattened grid as CSV
 WRITE_NC     = True          # gridded scores -> NetCDF
 

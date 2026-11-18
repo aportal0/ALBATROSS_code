@@ -20,7 +20,6 @@ Metrics implemented here:
   - RPSS  RPS skill score vs the pooled hindcast ensemble
   - rank histogram flatness (calibration summary)
   - mean tercile probabilities
-  - year-block bootstrap CI on the domain-mean CRPSS and RPSS
 
 Terciles: SPEI is standardised, so the below / normal / above-normal
 categories are the fixed breakpoints -0.4307 and +0.4307 (the 1/3 and 2/3
@@ -43,24 +42,28 @@ import xarray as xr
 # ----------------------------------------------------------------------
 # CONFIG
 # ----------------------------------------------------------------------
+COUNTRY = "Madagascar"
+METHOD = "Mod-Hargreaves"
 INIT_MONTH   = 10          # October
-LEADS        = (1, 2, 3)   # aggregate = Nov, Dec, Jan
+LEADS        = (0, 1, 2)   # aggregate = Nov, Dec, Jan
 LEAD_OFFSET  = 1           # lead n = init + n months  -> lead 1 = November
+LEAD_STR = "".join(str(L+LEAD_OFFSET) for L in LEADS)
+
 
 DIR_FCST = f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/monthly/init_{INIT_MONTH}/SPEI/"
 PATH_FCST = DIR_FCST +\
-        (f"SPEI_Mod-Hargreaves_lead123_init{INIT_MONTH}_1993-2025_Madagascar_"
+        (f"SPEI_{METHOD}_lead{LEAD_STR}_init{INIT_MONTH}_1993-2025_{COUNTRY}_"
          "res_ERA5-Land_qdm_ERA5-Land_MSWEP.nc")
 DIR_OBS = "/ec/res4/scratch/ecme4047/ERA5-Land/SPEI/monthly/"
-PATH_OBS  = DIR_OBS + "SPEI_Mod-Hargreaves_3m_1993-2026_Madagascar.nc"
+PATH_OBS  = DIR_OBS + "SPEI_{METHOD}_3m_1993-2026_{COUNTRY}.nc"
 
 # Aggregated field verifies against the last month of the window
 # (January for an October init), which is init month + 3.
 VERIFY_MONTH_OFFSET = 3
 
 PATH_OUT_NC = DIR_FCST + \
-        (f"SPEI_Mod-Hargreaves_probabilistic_scores_lead123_"
-         f"init{INIT_MONTH}_1993-2025_Madagascar.nc")
+        (f"SPEI_{METHOD}_probabilistic_scores_lead{LEAD_STR}_"
+         f"init{INIT_MONTH}_1993-2025_{COUNTRY}.nc")
 WRITE_CSV   = False          # also write the flattened grid as CSV
 WRITE_NC    = True           # gridded scores -> NetCDF
 
@@ -68,9 +71,6 @@ WRITE_NC    = True           # gridded scores -> NetCDF
 # SPEI is standardised, so these are fixed, not estimated from the sample.
 TERCILE_EDGES = (-0.4307272992954575, 0.4307272992954575)
 
-# bootstrap for the domain-mean skill scores
-N_BOOTSTRAP     = 1000
-BOOTSTRAP_ALPHA = 0.05       # 95% interval
 
 
 # ----------------------------------------------------------------------
@@ -78,8 +78,8 @@ BOOTSTRAP_ALPHA = 0.05       # 95% interval
 # ----------------------------------------------------------------------
 def window_months(init_year):
     """[(year, month), ...] for each lead of the Oct-init window."""
-    return [((init_year + (INIT_MONTH - 1 + L * LEAD_OFFSET) // 12),
-             (INIT_MONTH - 1 + L * LEAD_OFFSET) % 12 + 1) for L in LEADS]
+    return [((init_year + (INIT_MONTH - 1 + L + LEAD_OFFSET) // 12),
+             (INIT_MONTH - 1 + L + LEAD_OFFSET) % 12 + 1) for L in LEADS]
 
 
 def verify_month(init_year):
@@ -200,6 +200,21 @@ def rank_flatness(fv, ov):
     return np.where(total > 0, flat, np.nan)
 
 
+def _colmean(a):
+    """Mean over axis 0, quiet on all-NaN slices.
+
+    np.nanmean warns ("Mean of empty slice") once for every masked grid
+    point and returns NaN. The result is the same either way; this just
+    keeps the console readable when the field is land-masked.
+    """
+    a = np.asarray(a, dtype=float)
+    m = np.isfinite(a)
+    counts = m.sum(axis=0)
+    total = np.where(m, a, 0.0).sum(axis=0)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(counts > 0, total / counts, np.nan)
+
+
 def probabilistic_scores(f, o):
     """CRPS, CRPSS and the tercile RPS / RPSS, per grid point.
 
@@ -257,153 +272,6 @@ def probabilistic_scores(f, o):
         "p_above":  xr.DataArray(np.nanmean(probs[2], axis=0),
                                  coords=coords, dims=d2),
     })
-
-
-def _bootstrap_draws(T, n_boot, seed):
-    """Resampled year indices, one row per bootstrap replicate.
-
-    Drawn up-front in the parent process so every worker uses the same
-    reproducible set of draws, whatever order they complete in.
-    """
-    rng = np.random.default_rng(seed)
-    return [rng.integers(0, T, size=T) for _ in range(n_boot)]
-
-
-def _colmean(a):
-    """Mean over axis 0, quiet on all-NaN slices.
-
-    np.nanmean warns ("Mean of empty slice") once for every masked grid
-    point and returns NaN. The result is the same either way; this just
-    keeps the console readable when the field is land-masked.
-    """
-    a = np.asarray(a, dtype=float)
-    m = np.isfinite(a)
-    counts = m.sum(axis=0)
-    total = np.where(m, a, 0.0).sum(axis=0)
-    with np.errstate(invalid="ignore", divide="ignore"):
-        return np.where(counts > 0, total / counts, np.nan)
-
-
-def _safe_mean(a):
-    """Mean over the finite values, or NaN when there are none.
-
-    Used instead of np.nanmean so that an all-NaN slice (a land-masked
-    grid point, or a bootstrap draw that hit only masked years) returns
-    NaN quietly rather than emitting "Mean of empty slice" once per grid
-    point per replicate.
-    """
-    a = np.asarray(a)
-    m = np.isfinite(a)
-    if not m.any():
-        return float("nan")
-    return float(a[m].mean())
-
-
-def _bootstrap_one(payload):
-    """Domain-mean CRPSS and RPSS for one resampled year set.
-
-    Takes plain arrays rather than xarray objects so the payload pickles
-    cheaply when it crosses a process boundary.
-    """
-    fv, ov, pick = payload
-    try:
-        sb = _score_arrays(fv[pick], ov[pick])
-        return (_safe_mean(sb["crpss"]), _safe_mean(sb["rpss"]))
-    except Exception:                                     # noqa: BLE001
-        return (float("nan"), float("nan"))
-
-
-def bootstrap_ci(f, o, n_boot=N_BOOTSTRAP, alpha=BOOTSTRAP_ALPHA, seed=0,
-                 n_jobs=None, backend="threads"):
-    """Year-block bootstrap CI for the domain-mean CRPSS and RPSS.
-
-    Resamples whole verification years with replacement and recomputes
-    the scores. Blocking by year is essential: grid points are spatially
-    correlated, so a point-wise bootstrap gives absurdly narrow
-    intervals.
-
-    Parallelised with joblib when it is available. The work is dominated
-    by numpy array arithmetic, which releases the GIL, so the default is
-    the thread backend: it shares memory instead of pickling the arrays
-    to every worker, and it is the faster of the two here. Pass
-    backend="loky" to use separate processes instead.
-
-    n_jobs=None lets joblib choose (-1, i.e. all cores, for joblib's
-    default). Without joblib installed this falls back to a plain serial
-    loop and still works.
-    """
-    T = f.sizes["time"]
-    draws = _bootstrap_draws(T, n_boot, seed)
-
-    # arrays are shipped once, then sliced per replicate
-    fv = np.asarray(f.transpose("time", "number", "lat", "lon").values)
-    ov = np.asarray(o.transpose("time", "lat", "lon").values)
-    payloads = [(fv, ov, pick) for pick in draws]
-
-    results = None
-    try:
-        from joblib import Parallel, delayed
-        results = Parallel(n_jobs=n_jobs, backend=backend)(
-            delayed(_bootstrap_one)(p) for p in payloads
-        )
-    except ImportError:
-        results = None
-
-    if results is None:
-        print("  joblib not available - running the bootstrap serially")
-        results = [_bootstrap_one(p) for p in payloads]
-
-    arr = np.asarray(results, dtype=float)          # (n_boot, 2)
-    out = {}
-    for i, name in enumerate(("crpss", "rpss")):
-        a = arr[:, i]
-        a = a[np.isfinite(a)]
-        if a.size:
-            out[name] = (float(np.percentile(a, 100 * alpha / 2)),
-                         float(np.percentile(a, 100 * (1 - alpha / 2))))
-        else:
-            out[name] = (float("nan"), float("nan"))
-    return out
-
-
-def _score_arrays(fv, ov):
-    """probabilistic_scores on plain arrays, for bootstrap workers.
-
-    fv : (time, member, lat, lon)   ov : (time, lat, lon)
-
-    Returns a dict of 2-D array-valued scores; the spatial reduction is
-    left to the caller.
-    """
-    crps_fc = crps_ensemble(np.moveaxis(fv, 1, 0), ov)
-
-    pooled = fv.reshape(-1, fv.shape[2], fv.shape[3])
-    y_flat = np.repeat(ov, fv.shape[1], axis=0)
-    crps_ref = crps_ensemble(pooled, y_flat)
-    # np.nanmean on an all-NaN slice (a masked grid point) warns once per
-    # point and returns NaN; use the quiet helper instead.
-    crpss = 1.0 - _colmean(crps_fc) / _colmean(crps_ref)
-
-    lo, hi = TERCILE_EDGES
-    probs = np.stack([
-        (fv < lo).mean(axis=1),
-        1.0 - (fv < lo).mean(axis=1) - (fv > hi).mean(axis=1),
-        (fv > hi).mean(axis=1),
-    ], axis=0)                                            # (3, time, lat, lon)
-    cat = np.digitize(ov, [lo, hi]).astype(float)         # (time, lat, lon)
-
-    rps_fc = rps_categories(probs, cat)
-
-    ref_probs = np.stack([
-        (pooled < lo).mean(axis=0) * np.ones_like(cat),
-        (((pooled >= lo) & (pooled <= hi)).mean(axis=0)
-         * np.ones_like(cat)),
-        (pooled > hi).mean(axis=0) * np.ones_like(cat),
-    ], axis=0)
-    rps_ref = rps_categories(ref_probs, cat)
-
-    rpss = 1.0 - np.nanmean(rps_fc, axis=0) / np.nanmean(rps_ref, axis=0)
-
-    return {"crpss": crpss, "rpss": rpss}
 
 
 # ----------------------------------------------------------------------
@@ -526,12 +394,6 @@ def main():
     print(f"  crpss : {(ps['crpss'].values > 0).mean():.3f}")
     print(f"  rpss  : {(ps['rpss'].values > 0).mean():.3f}")
 
-    print("\n=== Bootstrap CI on the domain mean (year blocks) ===")
-    ci = bootstrap_ci(f, o)
-    for name in ("crpss", "rpss"):
-        lo, hi = ci[name]
-        print(f"  {name}: 95% CI [{lo:+.3f}, {hi:+.3f}]")
-
     # ---- gridded output -------------------------------------------------
     out = build_output(ps, usable, n_eff)
 
@@ -543,8 +405,8 @@ def main():
 
     if WRITE_CSV:
         df = out.to_dataframe().reset_index().dropna(subset=["crpss"])
-        csv_name = ("SPEI_Mod-Hargreaves_probabilistic_scores_lead123_"
-                    f"init{INIT_MONTH}_1993-2025_Madagascar.csv")
+        csv_name = (f"SPEI_{METHOD}_probabilistic_scores_lead{LEAD_STR}_"
+                    f"init{INIT_MONTH}_1993-2025_{COUNTRY}.csv")
         df.to_csv(csv_name, index=False)
         print(f"wrote {csv_name} ({len(df)} rows)")
 
