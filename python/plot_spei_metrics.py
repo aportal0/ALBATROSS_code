@@ -28,14 +28,15 @@ MONTHS = list(calendar.month_abbr)[1:]
 INIT_MONTH   = 10
 METHOD_LABEL = "Mod-Hargreaves"
 YEAR_RANGE = [1993, 2025]
+LEAD_STR = "123"
 
 NC_FILE      = ("/home/alice/Desktop/UniBo/data/C3S_seasonal/ecmwf51/monthly/"
                 f"init_{INIT_MONTH}/SPEI/SPEI_{METHOD_LABEL}_deterministic_scores_"
-                f"lead123_init{INIT_MONTH}_{YEAR_RANGE[0]}-{YEAR_RANGE[1]}_Madagascar.nc")
+                f"lead{LEAD_STR}_init{INIT_MONTH}_{YEAR_RANGE[0]}-{YEAR_RANGE[1]}_Madagascar.nc")
 FIG_DIR      = "/home/alice/Desktop/UniBo/figures/SPEI"
 FIG_STEM     = (f"SPEI_{METHOD_LABEL}_"
-                "{score}_lead123_"
-                f"init{INIT_MONTH}_{YEAR_RANGE[0]}-{YEAR_RANGE[1]}_Madagascar")
+                "{score}_"
+                f"lead{LEAD_STR}_init{INIT_MONTH}_{YEAR_RANGE[0]}-{YEAR_RANGE[1]}_Madagascar")
 
 
 # =============================================================================
@@ -139,7 +140,7 @@ def plot_scores(out, ratio, n_eff, r_crit, y0, y1,
     os.makedirs(fig_dir, exist_ok=True)
 
     if fig_stem is None:
-        fig_stem = ("SPEI_Mod-Hargreaves_{score}_lead123_init"
+        fig_stem = ("SPEI_{METHOD_LABEL}_{score}_lead{LEAD_STR}_init"
                     f"{init_month}_{y0}-{y1}_Madagascar")
 
     def path(score):
@@ -153,7 +154,7 @@ def plot_scores(out, ratio, n_eff, r_crit, y0, y1,
     r = float(np.nanmean(out["rmse"].values))
     _map(ax, out["rmse"],
          f"SPEI forecast RMSE - {method_label}\n"
-         f"leads 1-3, init {init_label}, {period}",
+         f"leads {LEAD_STR}, init {init_label}, {period}",
          "binary", "RMSE (SPEI units)", extend="max")
     fig.tight_layout()
     fig.savefig(path("rmse"), dpi=300)
@@ -170,7 +171,7 @@ def plot_scores(out, ratio, n_eff, r_crit, y0, y1,
     frac = float(np.nanmean(sig.values))
     _map(ax, corr,
          f"SPEI forecast correlation - {method_label}\n"
-         f"leads 1-3, init {init_label}, {period}",
+         f"leads {LEAD_STR}, init {init_label}, {period}",
          "RdBu_r", "Pearson r", diverging=True, extend="both")
 
     # Outline the significant region along the exact cell edges.
@@ -210,7 +211,7 @@ def plot_scores(out, ratio, n_eff, r_crit, y0, y1,
     rr = float(np.nanmean(ratio.values))
     _map(ax, ratio,
          f"SPEI forecast spread / RMSE - {method_label}\n"
-         f"leads 1-3, init {init_label}, {period}",
+         f"leads {LEAD_STR}, init {init_label}, {period}",
          "PuOr_r", "spread / RMSE (1 = calibrated)", vmin=0.8, vmax=1.2,
          extend="both")
     fig.tight_layout()
