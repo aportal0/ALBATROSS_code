@@ -55,11 +55,11 @@ PATH_FCST = DIR_FCST +\
         (f"SPEI_{METHOD}_lead{LEAD_STR}_init{INIT_MONTH}_1993-2025_{COUNTRY}_"
          "res_ERA5-Land_qdm_ERA5-Land_MSWEP.nc")
 DIR_OBS = "/ec/res4/scratch/ecme4047/ERA5-Land/SPEI/monthly/"
-PATH_OBS  = DIR_OBS + "SPEI_{METHOD}_3m_1993-2026_{COUNTRY}.nc"
+PATH_OBS  = DIR_OBS + f"SPEI_{METHOD}_3m_1993-2026_{COUNTRY}.nc"
 
 # Aggregated field verifies against the last month of the window
 # (January for an October init), which is init month + 3.
-VERIFY_MONTH_OFFSET = 3
+VERIFY_MONTH_OFFSET = LEAD_OFFSET + LEADS[-1]
 
 PATH_OUT_NC = DIR_FCST + \
         (f"SPEI_{METHOD}_probabilistic_scores_lead{LEAD_STR}_"
@@ -317,8 +317,8 @@ def build_output(ps, usable, n_eff):
         forecast=PATH_FCST,
         observation=PATH_OBS,
         init_month=f"{INIT_MONTH:02d}",
-        forecast_window="leads 1-3 (Nov, Dec, Jan)",
-        verification_month="init + 3 months (January)",
+        forecast_window=f"leads {LEAD_OFFSET+LEADS[0]}-{LEAD_OFFSET+LEADS[-1]}",
+        verification_month=f"init + {LEAD_OFFSET+LEADS[-1]} months (January)",
         scoring_period=f"{usable[0]}-{usable[-1]} ({n_eff} init years)",
         ensemble_members=str(int(ps.sizes.get("number", 25))),
         tercile_edges=f"{TERCILE_EDGES[0]:.4f}, {TERCILE_EDGES[1]:.4f}",
