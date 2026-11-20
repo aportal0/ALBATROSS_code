@@ -18,29 +18,31 @@ import os
 import sys
 import xarray as xr
 
-import functions_spei_driver as fSPEI
+import functions_spei as fSPEI
 
 
 # --------------------------------------------------------------------------
 # configuration
 # --------------------------------------------------------------------------
 
+# --- which branches to run -------------------------------------------------
+RUN_OBS = False           # observations: ERA5-Land + MSWEP -> SPEI
+RUN_FORECAST = True     # calibrated seasonal forecasts -> forecast SPEI
 
+# "Hargreaves", "Mod-Hargreaves", or "both" (runs the SPEI chain twice).
+METHOD = "both"
+
+
+# --- observation branch -------------------------------------------------------
 # COUNTRY must be a key of fSPEI.boxes_african_countries().
 # YEARS is an inclusive (start, end) pair, used for the observation branch.
 COUNTRY = "Madagascar"
 YEARS = (1993, 2026)
 SCALES = [1,3,6,12]
 
-# "Hargreaves", "Mod-Hargreaves", or "both" (runs the SPEI chain twice).
-METHOD = "both"
-
 FORCE_REGRID = False     # True to ignore cached regridding weights
 FORCE_RECOMPUTE = False  # True to ignore saved precip and et0 files
 
-# --- which branches to run -------------------------------------------------
-RUN_OBS = False           # observations: ERA5-Land + MSWEP -> SPEI
-RUN_FORECAST = True     # calibrated seasonal forecasts -> forecast SPEI
 
 # --- forecast branch -------------------------------------------------------
 # The init month whose seasonal run is used, 1..12.
