@@ -22,21 +22,39 @@ import numpy as np
 
 MONTHS = list(calendar.month_abbr)[1:]
 
+# fixed colourbar boundaries, one list per score
+TICKS = {
+    "corr":  np.round(np.arange(-0.55, 0.5501, 0.10), 2),   # -0.55 .. 0.55
+    "crps":  np.round(np.arange(0.30, 0.8001, 0.05), 2),    #  0.30 .. 0.80
+    "crpss": np.round(np.arange(-0.375, 0.3751, 0.05), 3),  # -0.375 .. 0.375
+    "rmse":  np.round(np.arange(0.70, 1.2001, 0.05), 2),    #  0.70 .. 1.20
+    "rps":   np.round(np.arange(1.50, 2.0001, 0.05), 2),    #  1.50 .. 2.00
+    "rpss":  np.round(np.arange(-0.225, 0.2251, 0.03), 3),  # -0.225 .. 0.225
+    "spread_rmse": np.round(np.arange(0.75, 1.2501, 0.05), 2),  #  0.75 .. 1.25
+}
+
 # ----------------------------------------------------------------------
 # CONFIG - used by the __main__ entry point
 # ----------------------------------------------------------------------
 INIT_MONTH   = 10
+COUNTRY = "Madagascar"
 METHOD_LABEL = "Mod-Hargreaves"
 YEAR_RANGE = [1993, 2025]
 LEAD_STR = "123"
 
-NC_FILE      = ("/home/alice/Desktop/UniBo/data/C3S_seasonal/ecmwf51/monthly/"
-                f"init_{INIT_MONTH}/SPEI/SPEI_{METHOD_LABEL}_deterministic_scores_"
-                f"lead{LEAD_STR}_init{INIT_MONTH}_{YEAR_RANGE[0]}-{YEAR_RANGE[1]}_Madagascar.nc")
+_DIR_SCORES = ("/home/alice/Desktop/UniBo/data/C3S_seasonal/ecmwf51/monthly/"
+               f"init_{INIT_MONTH}/SPEI/")
+
+NC_FILE       = (_DIR_SCORES
+                 + f"SPEI_{METHOD_LABEL}_deterministic_scores_lead{LEAD_STR}"
+                 f"_init{INIT_MONTH}_{YEAR_RANGE[0]}-{YEAR_RANGE[1]}_{COUNTRY}.nc")
+NC_FILE_PROB  = (_DIR_SCORES
+                 + f"SPEI_{METHOD_LABEL}_probabilistic_scores_lead{LEAD_STR}"
+                 f"_init{INIT_MONTH}_{YEAR_RANGE[0]}-{YEAR_RANGE[1]}_{COUNTRY}.nc")
 FIG_DIR      = "/home/alice/Desktop/UniBo/figures/SPEI"
 FIG_STEM     = (f"SPEI_{METHOD_LABEL}_"
                 "{score}_"
-                f"lead{LEAD_STR}_init{INIT_MONTH}_{YEAR_RANGE[0]}-{YEAR_RANGE[1]}_Madagascar")
+                f"lead{LEAD_STR}_init{INIT_MONTH}_{YEAR_RANGE[0]}-{YEAR_RANGE[1]}_{COUNTRY}")
 
 
 # =============================================================================
@@ -81,22 +99,75 @@ def get_lon_lat_vals(da):
 
 
 def _map(ax, da, title, cmap, label, vmin=None, vmax=None,
-         diverging=False, extend=None):
-    """Draw one gridded field as a Cartopy map with a colourbar."""
+         diverging=False, extend=None, ticks=None,
+         under_shade=0.45, over_shade=0.45, lighten_under=False):
+    """Draw one gridded field as a Cartopy map with a colourbar.
+
+    `ticks` gives the colourbar boundaries explicitly; the field is
+    drawn with a BoundaryNorm so the colours step at those values and
+    the bar is labelled with the same list.
+
+    `under_shade` / `over_shade` darken the out-of-range triangles (the
+    two ends shown when extend="both") to 45% brightness by default.
+    Taking a darker shade of each end colour keeps the sense of which
+    direction is which while making clear the value lies beyond the
+    scale - a flat grey would lose that, and the plain end colour would
+    read as in-range. Set either to None to leave that end as it is.
+
+    A colormap whose ends are white and black cannot show this: there is
+    no darker shade of white, and black has nowhere to go. Use a
+    sequential colormap with real hue at both ends instead.
+
+    `lighten_under` flips the UNDER arrow to a lighter shade instead,
+    for a scale where the low end is the pale one and going lighter is
+    what plainly says "beyond the scale". Use it where the low end is
+    already dark.
+    """
     import cartopy.crs as ccrs
+    from matplotlib.colors import BoundaryNorm
 
     lon, lat, vals = get_lon_lat_vals(da)
     kw = {}
-    if diverging:
+    if ticks is not None:
+        levels = np.asarray(ticks, dtype=float)
+        kw = dict(norm=BoundaryNorm(levels, ncolors=256, clip=False))
+    elif diverging:
         lim = np.nanmax(np.abs(vals))
         kw = dict(vmin=-lim, vmax=lim)
     elif vmin is not None:
         kw = dict(vmin=vmin, vmax=vmax)
 
+    # The over / under colours are set on the colormap BEFORE the
+    # colourbar is built: the bar takes its own copy at construction, so
+    # changing them afterwards has no effect on what is drawn. A copy is
+    # used so the map's own colours are untouched.
+    import matplotlib.pyplot as _plt
+
+    cmap_obj = _plt.colormaps[cmap] if isinstance(cmap, str) else cmap
+    cmap_obj = cmap_obj.copy()
+
+    def _shade(rgba, f, lighter):
+        r, g, b, a = rgba
+        if lighter:
+            # move toward white rather than black
+            return (r + (1.0 - r) * (1.0 - f),
+                    g + (1.0 - g) * (1.0 - f),
+                    b + (1.0 - b) * (1.0 - f), a)
+        return (r * f, g * f, b * f, a)
+
+    if under_shade is not None:
+        cmap_obj.set_under(_shade(cmap_obj(0.0), under_shade, lighten_under))
+    if over_shade is not None:
+        cmap_obj.set_over(_shade(cmap_obj(1.0), over_shade, False))
+
     m = ax.pcolormesh(lon, lat, vals, transform=ccrs.PlateCarree(),
-                      cmap=cmap, **kw)
+                      cmap=cmap_obj, **kw)
     format_map(ax, title)
-    ax.figure.colorbar(m, ax=ax, label=label, shrink=0.8, extend=extend)
+    cb = ax.figure.colorbar(m, ax=ax, label=label, shrink=0.8,
+                            extend=extend, ticks=ticks)
+
+    if ticks is not None:
+        cb.ax.tick_params(labelsize=8)
     return m
 
 
@@ -131,7 +202,7 @@ def plot_scores(out, ratio, n_eff, r_crit, y0, y1,
         Output directory (created if missing).
     fig_stem : str
         Filename stem with a `{score}` placeholder, e.g.
-        "SPEI_Mod-Hargreaves_{score}_lead123_init10_1993-2025_Madagascar".
+        "SPEI_Mod-Hargreaves_{score}_lead123_init10_1993-2025_{COUNTRY}".
     """
     import cartopy.crs as ccrs
     from matplotlib.lines import Line2D
@@ -141,7 +212,7 @@ def plot_scores(out, ratio, n_eff, r_crit, y0, y1,
 
     if fig_stem is None:
         fig_stem = ("SPEI_{METHOD_LABEL}_{score}_lead{LEAD_STR}_init"
-                    f"{init_month}_{y0}-{y1}_Madagascar")
+                    f"{init_month}_{y0}-{y1}_{COUNTRY}")
 
     def path(score):
         return os.path.join(fig_dir, fig_stem.format(score=score) + ".png")
@@ -155,7 +226,8 @@ def plot_scores(out, ratio, n_eff, r_crit, y0, y1,
     _map(ax, out["rmse"],
          f"SPEI forecast RMSE - {method_label}\n"
          f"leads {LEAD_STR}, init {init_label}, {period}",
-         "binary", "RMSE (SPEI units)", extend="max")
+         "YlOrRd", "RMSE (SPEI units)", extend="both", ticks=TICKS["rmse"],
+         under_shade=0.5, lighten_under=True)
     fig.tight_layout()
     fig.savefig(path("rmse"), dpi=300)
     plt.close(fig)
@@ -172,7 +244,8 @@ def plot_scores(out, ratio, n_eff, r_crit, y0, y1,
     _map(ax, corr,
          f"SPEI forecast correlation - {method_label}\n"
          f"leads {LEAD_STR}, init {init_label}, {period}",
-         "RdBu_r", "Pearson r", diverging=True, extend="both")
+         "RdBu_r", "Pearson r", diverging=True, extend="both",
+         ticks=TICKS["corr"])
 
     # Outline the significant region along the exact cell edges.
     #
@@ -212,8 +285,8 @@ def plot_scores(out, ratio, n_eff, r_crit, y0, y1,
     _map(ax, ratio,
          f"SPEI forecast spread / RMSE - {method_label}\n"
          f"leads {LEAD_STR}, init {init_label}, {period}",
-         "PuOr_r", "spread / RMSE (1 = calibrated)", vmin=0.8, vmax=1.2,
-         extend="both")
+         "PuOr_r", "spread / RMSE (1 = calibrated)", extend="both",
+         ticks=TICKS["spread_rmse"])
     fig.tight_layout()
     fig.savefig(path("spread_rmse"), dpi=300)
     plt.close(fig)
@@ -346,6 +419,188 @@ def _get_scalar(ds, name):
 
 
 
+def plot_probabilistic_from_file(nc_path, fig_dir="figures", fig_stem=None,
+                                 method_label="Modified Hargreaves",
+                                 init_month=10):
+    """Draw the probabilistic score maps from a score NetCDF.
+
+    Reads the file written by prob_metrics.py. Only the variables that
+    file actually contains are drawn, so this is safe to point at a
+    deterministic score file too (it will simply draw nothing).
+    """
+    import xarray as xr
+
+    out = xr.open_dataset(nc_path)
+
+    have = set(out.data_vars)
+    if not (have & {"crps", "crpss", "rps", "rpss"}):
+        print(f"  {nc_path}: no probabilistic variables found "
+              f"(has {sorted(have)})")
+        return
+
+    y0 = YEAR_RANGE[0]
+    y1 = YEAR_RANGE[1]
+    n_eff = int(_get_scalar(out, "n_cases"))
+    if not np.isfinite(n_eff) or n_eff < 3:
+        n_eff = y1 - y0 + 1
+
+    plot_probabilistic(out, n_eff, y0, y1,
+                       fig_dir=fig_dir, fig_stem=fig_stem,
+                       method_label=method_label, init_month=init_month,
+                       src_fcst=out.attrs.get("forecast", ""),
+                       src_obs=out.attrs.get("observation", ""))
+
+
+def plot_probabilistic(out, n_eff, y0, y1,
+                       fig_dir="figures", fig_stem=None,
+                       method_label="Modified Hargreaves", init_month=10,
+                       src_fcst="", src_obs=""):
+    """Score maps and summary panels for the probabilistic metrics.
+
+    out : xarray.Dataset with crps, crpss, rps, rpss,
+          p_below, p_normal, p_above.
+    """
+    plt = setup_mpl()
+    os.makedirs(fig_dir, exist_ok=True)
+
+    if fig_stem is None:
+        fig_stem = (f"SPEI_{method_label}_{{score}}_lead{LEAD_STR}_init"
+                    f"{init_month}_{y0}-{y1}_{COUNTRY}")
+
+    def path(score):
+        return os.path.join(fig_dir, fig_stem.format(score=score) + ".png")
+
+    period = f"{y0}-{y1} ({n_eff} init years)"
+    init_label = MONTHS[init_month - 1]
+
+    # ---------------- CRPS map ------------------------------------------
+    # proper score, so lower is better; like RMSE it has no natural upper
+    # bound, so the colour scale is taken from the data itself
+    if "crps" in out:
+        fig, ax = _new_map_fig(plt)
+        c = float(np.nanmean(out["crps"].values))
+        _map(ax, out["crps"],
+             f"SPEI forecast CRPS - {method_label}\n"
+             f"leads {LEAD_STR}, init {init_label}, {period}",
+             "viridis", "CRPS (SPEI units)", extend="both",
+             ticks=TICKS["crps"])
+        fig.tight_layout()
+        fig.savefig(path("crps"), dpi=300)
+        plt.close(fig)
+        print(f"  crps map: domain mean {c:.3f}"
+              + (f", source {src_fcst}" if src_fcst else ""))
+
+    # ---------------- CRPSS map -----------------------------------------
+    # skill score: 0 is no skill, so the scale is centred on zero and the
+    # colour range is symmetric so positive and negative read alike
+    if "crpss" in out:
+        fig, ax = _new_map_fig(plt)
+        v = out["crpss"].values
+        frac = float(np.nanmean(v > 0))
+        _map(ax, out["crpss"],
+             f"SPEI forecast CRPSS - {method_label}\n"
+             f"leads {LEAD_STR}, init {init_label}, {period}",
+             "RdBu_r", "CRPSS (-)", diverging=True, extend="both",
+             ticks=TICKS["crpss"])
+        fig.tight_layout()
+        fig.savefig(path("crpss"), dpi=300)
+        plt.close(fig)
+        print(f"  crpss map: skill > 0 at {frac:.0%} of grid points"
+              + (f", source {src_fcst}" if src_fcst else ""))
+
+    # ---------------- RPS map -------------------------------------------
+    if "rps" in out:
+        fig, ax = _new_map_fig(plt)
+        r = float(np.nanmean(out["rps"].values))
+        _map(ax, out["rps"],
+             f"SPEI forecast RPS over terciles - {method_label}\n"
+             f"leads {LEAD_STR}, init {init_label}, {period}",
+             "viridis", "RPS (-)", extend="both", ticks=TICKS["rps"])
+        fig.tight_layout()
+        fig.savefig(path("rps"), dpi=300)
+        plt.close(fig)
+        print(f"  rps map: domain mean {r:.3f}")
+
+    # ---------------- RPSS map ------------------------------------------
+    if "rpss" in out:
+        fig, ax = _new_map_fig(plt)
+        v = out["rpss"].values
+        frac = float(np.nanmean(v > 0))
+        _map(ax, out["rpss"],
+             f"SPEI forecast RPSS over terciles - {method_label}\n"
+             f"leads {LEAD_STR}, init {init_label}, {period}",
+             "RdBu_r", "RPSS (-)", diverging=True, extend="both",
+             ticks=TICKS["rpss"])
+        fig.tight_layout()
+        fig.savefig(path("rpss"), dpi=300)
+        plt.close(fig)
+        print(f"  rpss map: skill > 0 at {frac:.0%} of grid points")
+
+    # ---------------- distributions -------------------------------------
+    panels = [(n, "#2F5D9E", u) for n, u in (
+        ("crps", "CRPS (SPEI units)"),
+        ("crpss", "CRPSS (-)"),
+        ("rpss", "RPSS (-)"),
+    ) if n in out]
+
+    if panels:
+        ncol = len(panels)
+        fig, axes = plt.subplots(1, ncol, figsize=(4.4 * ncol, 4.5),
+                                 squeeze=False)
+        axes = axes[0]
+        colours = ["#2F5D9E", "#E07B39", "#3A9D5D", "#8E5EA2"]
+        for ax, (name, _c, xlabel), colour in zip(axes, panels, colours):
+            vals = np.asarray(out[name].values).ravel()
+            vals = vals[np.isfinite(vals)]
+            if not vals.size:
+                ax.set_visible(False)
+                continue
+            ax.hist(vals, bins=30, color=colour, edgecolor="white",
+                    linewidth=0.4)
+            ax.axvline(float(np.median(vals)), color="#222", lw=1.4,
+                       ls="--", label=f"median {np.median(vals):.2f}")
+            if name in ("crpss", "rpss"):
+                ax.axvline(0.0, color="#B33", lw=1.4, ls=":",
+                           label="no skill 0")
+            ax.set_xlabel(xlabel)
+            ax.set_ylabel("Grid points")
+            ax.legend(fontsize=8, frameon=False)
+            ax.spines[["top", "right"]].set_visible(False)
+        fig.suptitle(f"Distribution of probabilistic SPEI scores - "
+                     f"{method_label}\n{out['crps'].size if 'crps' in out else ''}"
+                     f" grid points, init {init_label}, {period}")
+        fig.tight_layout()
+        fig.savefig(path("prob_distributions"), dpi=300)
+        plt.close(fig)
+
+    # ---------------- tercile probabilities -----------------------------
+    if {"p_below", "p_normal", "p_above"} <= set(out.data_vars):
+        fig, axes = plt.subplots(1, 3, figsize=(13.2, 4.5))
+        lo, hi = _get_scalar(out, "tercile_edge_low"), \
+            _get_scalar(out, "tercile_edge_high")
+        for ax, name, title, cmap in (
+            (axes[0], "p_below", f"P(SPEI < {lo:.2f})", "Reds"),
+            (axes[1], "p_normal", f"P({lo:.2f} to {hi:.2f})", "Greens"),
+            (axes[2], "p_above", f"P(SPEI > {hi:.2f})", "Blues"),
+        ):
+            lon, lat, vals = get_lon_lat_vals(out[name])
+            m = ax.pcolormesh(lon, lat, vals, cmap=cmap,
+                              vmin=0.0, vmax=1.0)
+            ax.set_title(title)
+            ax.set_xlabel("Longitude (degrees east)")
+            ax.set_ylabel("Latitude (degrees north)")
+            ax.set_aspect("equal")
+            ax.spines[["top", "right"]].set_visible(False)
+            ax.figure.colorbar(m, ax=ax, label="probability", shrink=0.8)
+        fig.suptitle(f"Mean forecast tercile probabilities - {method_label}\n"
+                     f"leads {LEAD_STR}, init {init_label}, {period}")
+        fig.tight_layout()
+        fig.savefig(path("tercile_probs"), dpi=300)
+        plt.close(fig)
+
+    print(f"\nwrote probabilistic figures to {fig_dir}/")
+
+
 def plot_from_file(nc_path, fig_dir="figures", fig_stem=None,
                    method_label="Modified Hargreaves", init_month=10):
     """Redraw the figures from a score NetCDF written by the metrics script."""
@@ -389,4 +644,10 @@ if __name__ == "__main__":
                    fig_stem=FIG_STEM,
                    method_label=METHOD_LABEL,
                    init_month=INIT_MONTH)
+
+    plot_probabilistic_from_file(NC_FILE_PROB,
+                                 fig_dir=FIG_DIR,
+                                 fig_stem=FIG_STEM,
+                                 method_label=METHOD_LABEL,
+                                 init_month=INIT_MONTH)
 
