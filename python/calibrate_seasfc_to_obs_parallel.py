@@ -76,7 +76,7 @@ print(f"dask local_directory: {LOCAL_SCRATCH}", flush=True)
 REGION      = "Madagascar"
 TRAIN_YEARS = range(1993, 2022 + 1)
 VERIF_YEARS = range(1993, 2025 + 1)
-INIT_MONTH  = 10
+INIT_MONTH  = 1
 
 N_MONTHS    = 4
 
