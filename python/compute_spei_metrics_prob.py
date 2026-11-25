@@ -18,6 +18,8 @@ Metrics implemented here:
   - CRPSS CRPS skill score vs the pooled hindcast ensemble
   - RPS   ranked probability score over the three SPEI terciles
   - RPSS  RPS skill score vs the pooled hindcast ensemble
+  - BS    multi-category Brier score over the three terciles (unordered)
+  - BSS   Brier skill score vs the pooled hindcast ensemble
   - rank histogram flatness (calibration summary)
   - mean tercile probabilities
 
@@ -145,6 +147,29 @@ def rps_categories(probs, obs_cat):
     return ((cdf_f - cdf_o) ** 2).sum(axis=0)
 
 
+def brier_categories(probs, obs_cat):
+    """Multi-category Brier score over ordered or unordered categories.
+
+        BS = sum_k (p_k - o_k)^2
+
+    probs   : (category, case, lat, lon), probabilities summing to 1
+    obs_cat : (case, lat, lon), observed category index
+
+    Unlike RPS this treats the categories as labels: it does not charge
+    more for a miss that is further away, only for the mass assigned to
+    the wrong category. Reported for comparison with RPS, not instead of
+    it.
+    """
+    probs = np.asarray(probs)
+    K = probs.shape[0]
+
+    obs_onehot = np.zeros_like(probs)
+    for k in range(K):
+        obs_onehot[k] = (obs_cat == k).astype(float)
+
+    return ((probs - obs_onehot) ** 2).sum(axis=0)
+
+
 def tercile_probs(f):
     """Forecast probabilities of the three SPEI terciles.
 
@@ -254,6 +279,14 @@ def probabilistic_scores(f, o):
 
     rpss = 1.0 - np.nanmean(rps_fc, axis=0) / np.nanmean(rps_ref, axis=0)
 
+    # ---- tercile Brier score --------------------------------------------
+    # Same probabilities and same reference as RPS, but scored without
+    # regard to category order, so it can be compared directly with RPS.
+    bs_fc = brier_categories(probs, cat)
+    bs_ref = brier_categories(ref_probs, cat)
+
+    bss = 1.0 - _colmean(bs_fc) / _colmean(bs_ref)
+
     coords = {"lat": f.lat.values, "lon": f.lon.values}
     d2 = ("lat", "lon")
 
@@ -263,6 +296,8 @@ def probabilistic_scores(f, o):
         "rps":   xr.DataArray(np.nanmean(rps_fc, axis=0),
                               coords=coords, dims=d2),
         "rpss":  xr.DataArray(rpss, coords=coords, dims=d2),
+        "bs":    xr.DataArray(_colmean(bs_fc), coords=coords, dims=d2),
+        "bss":   xr.DataArray(bss, coords=coords, dims=d2),
         "rank_hist_flatness": xr.DataArray(rank_flatness(fv, ov),
                                            coords=coords, dims=d2),
         "p_below":  xr.DataArray(np.nanmean(probs[0], axis=0),
@@ -297,6 +332,8 @@ def build_output(ps, usable, n_eff):
         "crpss": ("CRPS skill score vs the pooled ensemble", "1"),
         "rps":   ("Ranked probability score over SPEI terciles", "-"),
         "rpss":  ("RPS skill score vs the pooled ensemble", "1"),
+        "bs":    ("Multi-category Brier score over SPEI terciles", "-"),
+        "bss":   ("Brier skill score vs the pooled ensemble", "1"),
         "rank_hist_flatness": (
             "L1 departure of the rank histogram from flat (0 = flat)", "1"),
         "p_below":  ("Mean forecast probability of the below-normal tercile", "1"),
@@ -386,13 +423,15 @@ def main():
     # ---- scores ---------------------------------------------------------
     ps = probabilistic_scores(f, o)
 
-    pkeys = ["crps", "crpss", "rps", "rpss", "rank_hist_flatness"]
+    pkeys = ["crps", "crpss", "rps", "rpss", "bs", "bss",
+             "rank_hist_flatness"]
     print("\n=== Domain-mean probabilistic scores ===")
     print(ps[pkeys].mean(["lat", "lon"]).to_pandas().round(3).to_string())
 
     print("\nskill > 0 at this fraction of grid points:")
     print(f"  crpss : {(ps['crpss'].values > 0).mean():.3f}")
     print(f"  rpss  : {(ps['rpss'].values > 0).mean():.3f}")
+    print(f"  bss   : {(ps['bss'].values > 0).mean():.3f}")
 
     # ---- gridded output -------------------------------------------------
     out = build_output(ps, usable, n_eff)

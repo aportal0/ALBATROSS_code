@@ -31,6 +31,8 @@ TICKS = {
     "rps":   np.round(np.arange(1.50, 2.0001, 0.05), 2),    #  1.50 .. 2.00
     "rpss":  np.round(np.arange(-0.225, 0.2251, 0.03), 3),  # -0.225 .. 0.225
     "spread_rmse": np.round(np.arange(0.75, 1.2501, 0.05), 2),  #  0.75 .. 1.25
+    "bs":    np.round(np.arange(0.40, 1.0001, 0.05), 2),    #  0.40 .. 1.00
+    "bss":   np.round(np.arange(-0.30, 0.3001, 0.05), 3),   # -0.30 .. 0.30
 }
 
 # ----------------------------------------------------------------------
@@ -51,6 +53,12 @@ NC_FILE       = (_DIR_SCORES
 NC_FILE_PROB  = (_DIR_SCORES
                  + f"SPEI_{METHOD_LABEL}_probabilistic_scores_lead{LEAD_STR}"
                  f"_init{INIT_MONTH}_{YEAR_RANGE[0]}-{YEAR_RANGE[1]}_{COUNTRY}.nc")
+# the mask is read from the forecast file: its NaN footprint is the
+# land/sea mask for this grid, and it is the reference the user trusts
+NC_FILE_MASK = (_DIR_SCORES
+                + f"SPEI_{METHOD_LABEL}_lead{LEAD_STR}_init{INIT_MONTH}"
+                f"_1993-2025_{COUNTRY}_res_ERA5-Land_qdm_ERA5-Land_MSWEP.nc")
+
 FIG_DIR      = "/home/alice/Desktop/UniBo/figures/SPEI"
 FIG_STEM     = (f"SPEI_{METHOD_LABEL}_"
                 "{score}_"
@@ -451,13 +459,63 @@ def plot_probabilistic_from_file(nc_path, fig_dir="figures", fig_stem=None,
                        src_obs=out.attrs.get("observation", ""))
 
 
+def _land_mask(out, mask_path=None, var="SPEI"):
+    """Boolean land mask: True where the forecast SPEI is not NaN.
+
+    Read from the forecast file (NC_FILE_MASK), whose NaN footprint is
+    the land/sea mask for this grid. A grid point where the forecast is
+    masked is water, so every score plotted there is blanked.
+
+    If the file cannot be read or has no such variable, fall back to the
+    mask implied by the score file itself rather than blanking the whole
+    map, and say so.
+    """
+    import xarray as xr
+
+    if mask_path:
+        try:
+            ds = xr.open_dataset(mask_path)
+            if var in ds:
+                da = ds[var]
+                # collapse any non-spatial dims (member, init_year) to one
+                # 2-D field: a point is land if any member/year has data
+                if da.ndim > 2:
+                    da = da.isel({d: 0 for d in da.dims
+                                  if d not in ("lat", "lon")}, drop=True)
+                v = np.asarray(da.values, dtype=float)
+                return xr.DataArray(np.isfinite(v), coords=da.coords,
+                                    dims=da.dims)
+            print(f"  ! {var} not found in {mask_path}")
+        except Exception as e:                            # noqa: BLE001
+            print(f"  ! could not read the mask from {mask_path}: {e}")
+
+    # fallback: any score field that is already masked
+    for name in ("crps", "rps", "bs", "p_below"):
+        if name in out:
+            v = np.asarray(out[name].values, dtype=float)
+            if np.isnan(v).any():
+                print(f"  ! land mask taken from {name} instead "
+                      f"(score file), not from the forecast file")
+                return xr.DataArray(np.isfinite(v), coords=out[name].coords,
+                                    dims=out[name].dims)
+
+    ref = next(iter(out.data_vars.values()))
+    return xr.DataArray(np.ones(ref.shape, dtype=bool),
+                        coords=ref.coords, dims=ref.dims)
+
+
+def _masked(da, mask):
+    """Set a field to NaN where the mask is False, for plotting only."""
+    return da.where(mask)
+
+
 def plot_probabilistic(out, n_eff, y0, y1,
                        fig_dir="figures", fig_stem=None,
                        method_label="Modified Hargreaves", init_month=10,
                        src_fcst="", src_obs=""):
     """Score maps and summary panels for the probabilistic metrics.
 
-    out : xarray.Dataset with crps, crpss, rps, rpss,
+    out : xarray.Dataset with crps, crpss, rps, rpss, bs, bss,
           p_below, p_normal, p_above.
     """
     plt = setup_mpl()
@@ -473,13 +531,23 @@ def plot_probabilistic(out, n_eff, y0, y1,
     period = f"{y0}-{y1} ({n_eff} init years)"
     init_label = MONTHS[init_month - 1]
 
+    # Ocean points carry a score of NaN in the error fields already; this
+    # makes the skill scores match, so the three of them read the same
+    # way. The file is not modified - the mask is applied to the copy
+    # used for plotting.
+    mask = _land_mask(out, mask_path=NC_FILE_MASK)
+    n_land = int(mask.values.sum())
+    n_all = int(mask.size)
+    print(f"  land mask: {n_land} of {n_all} grid points "
+          f"({n_land / max(n_all, 1):.1%})")
+
     # ---------------- CRPS map ------------------------------------------
     # proper score, so lower is better; like RMSE it has no natural upper
     # bound, so the colour scale is taken from the data itself
     if "crps" in out:
         fig, ax = _new_map_fig(plt)
         c = float(np.nanmean(out["crps"].values))
-        _map(ax, out["crps"],
+        _map(ax, _masked(out["crps"], mask),
              f"SPEI forecast CRPS - {method_label}\n"
              f"leads {LEAD_STR}, init {init_label}, {period}",
              "viridis", "CRPS (SPEI units)", extend="both",
@@ -497,7 +565,7 @@ def plot_probabilistic(out, n_eff, y0, y1,
         fig, ax = _new_map_fig(plt)
         v = out["crpss"].values
         frac = float(np.nanmean(v > 0))
-        _map(ax, out["crpss"],
+        _map(ax, _masked(out["crpss"], mask),
              f"SPEI forecast CRPSS - {method_label}\n"
              f"leads {LEAD_STR}, init {init_label}, {period}",
              "RdBu_r", "CRPSS (-)", diverging=True, extend="both",
@@ -512,7 +580,7 @@ def plot_probabilistic(out, n_eff, y0, y1,
     if "rps" in out:
         fig, ax = _new_map_fig(plt)
         r = float(np.nanmean(out["rps"].values))
-        _map(ax, out["rps"],
+        _map(ax, _masked(out["rps"], mask),
              f"SPEI forecast RPS over terciles - {method_label}\n"
              f"leads {LEAD_STR}, init {init_label}, {period}",
              "viridis", "RPS (-)", extend="both", ticks=TICKS["rps"])
@@ -526,7 +594,7 @@ def plot_probabilistic(out, n_eff, y0, y1,
         fig, ax = _new_map_fig(plt)
         v = out["rpss"].values
         frac = float(np.nanmean(v > 0))
-        _map(ax, out["rpss"],
+        _map(ax, _masked(out["rpss"], mask),
              f"SPEI forecast RPSS over terciles - {method_label}\n"
              f"leads {LEAD_STR}, init {init_label}, {period}",
              "RdBu_r", "RPSS (-)", diverging=True, extend="both",
@@ -536,20 +604,62 @@ def plot_probabilistic(out, n_eff, y0, y1,
         plt.close(fig)
         print(f"  rpss map: skill > 0 at {frac:.0%} of grid points")
 
+    # ---------------- BS map --------------------------------------------
+    # like RPS, an error not a skill score: lower is better. The scale
+    # runs 0 to 2 over three categories but most of the range is empty,
+    # so the ticks start at 0.40 rather than at 0.
+    if "bs" in out:
+        fig, ax = _new_map_fig(plt)
+        b = float(np.nanmean(out["bs"].values))
+        _map(ax, _masked(out["bs"], mask),
+             f"SPEI forecast Brier score over terciles - {method_label}\n"
+             f"leads {LEAD_STR}, init {init_label}, {period}",
+             "viridis", "BS (-)", extend="both", ticks=TICKS["bs"])
+        fig.tight_layout()
+        fig.savefig(path("bs"), dpi=300)
+        plt.close(fig)
+        print(f"  bs map: domain mean {b:.3f}")
+
+    # ---------------- BSS map -------------------------------------------
+    # skill score: 0 is no skill, centred on zero and symmetric
+    if "bss" in out:
+        fig, ax = _new_map_fig(plt)
+        v = out["bss"].values
+        frac = float(np.nanmean(v > 0))
+        _map(ax, _masked(out["bss"], mask),
+             f"SPEI forecast Brier skill score - {method_label}\n"
+             f"leads {LEAD_STR}, init {init_label}, {period}",
+             "RdBu_r", "BSS (-)", diverging=True, extend="both",
+             ticks=TICKS["bss"])
+        fig.tight_layout()
+        fig.savefig(path("bss"), dpi=300)
+        plt.close(fig)
+        print(f"  bss map: skill > 0 at {frac:.0%} of grid points")
+
     # ---------------- distributions -------------------------------------
     panels = [(n, "#2F5D9E", u) for n, u in (
         ("crps", "CRPS (SPEI units)"),
         ("crpss", "CRPSS (-)"),
         ("rpss", "RPSS (-)"),
+        ("bs", "BS (-)"),
+        ("bss", "BSS (-)"),
     ) if n in out]
 
     if panels:
         ncol = len(panels)
-        fig, axes = plt.subplots(1, ncol, figsize=(4.4 * ncol, 4.5),
+        # six panels at 4.4 in each would be unwieldy, so wrap to two rows
+        nrow = 1 if ncol <= 3 else 2
+        ncol_grid = (ncol + nrow - 1) // nrow
+        fig, axes = plt.subplots(nrow, ncol_grid,
+                                 figsize=(4.4 * ncol_grid, 4.5 * nrow),
                                  squeeze=False)
-        axes = axes[0]
+        axes = axes.ravel()
         colours = ["#2F5D9E", "#E07B39", "#3A9D5D", "#8E5EA2"]
-        for ax, (name, _c, xlabel), colour in zip(axes, panels, colours):
+        # hide any grid cell left over when panels do not fill the grid
+        for ax in axes[len(panels):]:
+            ax.set_visible(False)
+        for ax, (name, _c, xlabel), colour in zip(axes, panels,
+                                                  colours * 2):
             vals = np.asarray(out[name].values).ravel()
             vals = vals[np.isfinite(vals)]
             if not vals.size:
@@ -559,7 +669,7 @@ def plot_probabilistic(out, n_eff, y0, y1,
                     linewidth=0.4)
             ax.axvline(float(np.median(vals)), color="#222", lw=1.4,
                        ls="--", label=f"median {np.median(vals):.2f}")
-            if name in ("crpss", "rpss"):
+            if name in ("crpss", "rpss", "bss"):
                 ax.axvline(0.0, color="#B33", lw=1.4, ls=":",
                            label="no skill 0")
             ax.set_xlabel(xlabel)
