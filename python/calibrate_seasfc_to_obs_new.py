@@ -262,6 +262,53 @@ def _init_year(fname):
     return int(stem.split("init")[1][:4])
 
 
+
+def _spatial_dims(da, lat_name, lon_name, which):
+    """Return the REAL dimension names holding the lat/lon axes.
+
+    A regridded file may carry `lat`/`lon` as auxiliary COORDINATES on y/x
+    dims. `m_c.sizes[lat_name]` then fails or collapses a strip under isel, so
+    resolve to a dimension here -- by name when it already is one, otherwise by
+    matching the coordinate to the dimension of the same length.
+    """
+    def resolve(name, other):
+        if name in da.dims:
+            return name
+        if name not in da.coords:
+            raise KeyError(
+                f"{which} data has neither a dimension nor a coordinate "
+                f"named '{name}'. dims={list(da.dims)} coords={list(da.coords)}"
+            )
+        target = np.size(da[name].values)
+        # prefer a 1-D dim of that length that is not the other spatial axis
+        cands = [d for d in da.dims
+                 if da.sizes[d] == target and d not in (lat_name, lon_name)]
+        # a 2-D coordinate (curvilinear) has no matching dim; fall back to
+        # positional naming so the caller gets a clear message rather than a
+        # collapse.
+        if not cands:
+            raise ValueError(
+                f"'{name}' in the {which} data is a coordinate of shape "
+                f"{np.shape(da[name].values)} but no dimension matches it. "
+                f"dims={list(da.dims)}. Promote it with da.swap_dims(...) or "
+                f"regrid onto the forecast grid."
+            )
+        return cands[0]
+
+    lat_dim = resolve(lat_name, lon_name)
+    lon_dim = resolve(lon_name, lat_name)
+
+    # if lat and lon resolved onto the same dim (both 2-D on one axis), that is
+    # a curvilinear grid the strip loop cannot handle positionally.
+    if lat_dim == lon_dim:
+        raise ValueError(
+            f"{which} lat and lon both resolve to dim '{lat_dim}': this is a "
+            f"curvilinear grid and the rectangular strip loop cannot index it. "
+            f"Regrid onto a rectilinear grid first."
+        )
+    return lat_dim, lon_dim
+
+
 def lead_keep_mask(da, month, init_year, month_day=1):
     """Steps to keep: valid_time in `month` AND lead >= SKIP_LEAD_DAYS days
     after the initialization date (forecast spin-up excluded)."""
@@ -611,48 +658,96 @@ def run_one_variable(var, cfg, client):
             m_c, o_c, t_c = m_da, o_da, t_da
 
         # ---- 5. point-by-point QDM, in latitude strips --------------------
-        n_lat = m_c.sizes[SPATIAL_LAT_FC]
-        n_lon = m_c.sizes[SPATIAL_LON_FC]
+        # SLICE BY DIMENSION, NEVER BY COORDINATE. In regridded SEAS5 output
+        # `lat`/`lon` are frequently auxiliary COORDINATES carried on `y`/`x`
+        # dims. isel() with a coordinate name then selects along the wrong
+        # axis and collapses the strip to a scalar -- which is exactly the
+        # "array is 0-dimensional, but 2 were indexed" crash. Resolve the
+        # dimension names once, here, and use them for isel/transpose/chunks.
+        fc_lat_dim, fc_lon_dim = _spatial_dims(m_c, SPATIAL_LAT_FC,
+                                              SPATIAL_LON_FC, "forecast")
+        ob_lat_dim, ob_lon_dim = _spatial_dims(o_c, OB_LAT, OB_LON, "reference")
+
+        n_lat = m_c.sizes[fc_lat_dim]
+        n_lon = m_c.sizes[fc_lon_dim]
         n_year = t_c.sizes["init_year"]
         n_time = t_c.sizes[FC_TIME_DIM]
         n_mem  = t_c.sizes[MEMBER_DIM]
-        print(f"  grid {n_lat} x {n_lon}; target {n_year} x {n_time} x {n_mem}",
-              flush=True)
+        print(f"  grid {n_lat} x {n_lon} (dims '{fc_lat_dim}' x '{fc_lon_dim}'); "
+              f"reference dims '{ob_lat_dim}' x '{ob_lon_dim}'; "
+              f"target {n_year} x {n_time} x {n_mem}", flush=True)
+
+        # The strip loop cuts model AND reference with the same integer
+        # lat0:lat1 range. That is only sound when both lat axes are the SAME
+        # physical axis in the SAME order, so verify it rather than warn.
+        if (ob_lat_dim, ob_lon_dim) != (fc_lat_dim, fc_lon_dim):
+            raise ValueError(
+                f"the reference is on different spatial dims "
+                f"({ob_lat_dim}, {ob_lon_dim}) than the forecast "
+                f"({fc_lat_dim}, {fc_lon_dim}). The strip loop would pair "
+                f"model rows with unrelated reference rows. Cut/regrid the "
+                f"reference onto the forecast grid first."
+            )
+        if (m_c.sizes[fc_lat_dim], m_c.sizes[fc_lon_dim]) != \
+           (o_c.sizes[ob_lat_dim], o_c.sizes[ob_lon_dim]):
+            raise ValueError(
+                f"forecast grid {m_c.sizes[fc_lat_dim]}x{m_c.sizes[fc_lon_dim]} "
+                f"vs reference grid {o_c.sizes[ob_lat_dim]}x{o_c.sizes[ob_lon_dim]} "
+                f"-- the reference must be cut to the forecast patch."
+            )
 
         # the strip loop indexes model AND reference with the same integer
         # lat0:lat1 range -- that is only safe if the two grids line up
-        fc_lat_vals = np.asarray(t_da[SPATIAL_LAT_FC].values)
-        ob_lat_vals = np.asarray(o_da[OB_LAT].values)
-        if fc_lat_vals.shape != ob_lat_vals.shape:
+        try:
+            fc_lat_vals = np.asarray(t_da[SPATIAL_LAT_FC].values).ravel()
+            ob_lat_vals = np.asarray(o_da[OB_LAT].values).ravel()
+        except KeyError as exc:
+            raise KeyError(
+                f"latitude coord {exc} not found; forecast has "
+                f"{list(t_da.coords)}, reference has {list(o_da.coords)}"
+            ) from None
+        if fc_lat_vals.shape != ob_lat_vals.shape or not np.allclose(
+                fc_lat_vals, ob_lat_vals, atol=1e-6):
             raise ValueError(
-                f"forecast/reference lat length mismatch "
-                f"({fc_lat_vals.shape} vs {ob_lat_vals.shape}): the strip "
-                f"loop would calibrate every cell against the wrong "
-                f"reference row. Re-regrid one of them."
+                f"forecast and reference latitude axes differ "
+                f"(forecast {fc_lat_vals[:3]}...{fc_lat_vals[-1]}, "
+                f"reference {ob_lat_vals[:3]}...{ob_lat_vals[-1]}). The strip "
+                f"loop cuts both positionally, so this would calibrate every "
+                f"cell against the wrong reference row. Cut the reference to "
+                f"the forecast extent first."
             )
-        if not np.allclose(fc_lat_vals, ob_lat_vals, atol=1e-6):
-            print("  WARNING: forecast and reference latitude coords differ; "
-                  "strip alignment assumes identical ordering.", flush=True)
 
         corrected_blocks = []
         for lat0 in range(0, n_lat, LAT_BLOCK):
             lat1 = min(lat0 + LAT_BLOCK, n_lat)
-            fc_sl = {SPATIAL_LAT_FC: slice(lat0, lat1)}
-            ob_sl = {OB_LAT: slice(lat0, lat1)}
+            fc_sl = {fc_lat_dim: slice(lat0, lat1)}
+            ob_sl = {ob_lat_dim: slice(lat0, lat1)}
             n_rows = lat1 - lat0
 
             # materialise ONE strip (model, reference, target) as numpy
-            m_blk = np.asarray(
-                m_c.isel(fc_sl).transpose("init_year", FC_TIME_DIM, MEMBER_DIM,
-                                           SPATIAL_LAT_FC,
-                                           SPATIAL_LON_FC).values)
-            o_blk = np.asarray(
-                o_c.isel(ob_sl).transpose("init_year", OB_TIME_DIM,
-                                          OB_LAT, OB_LON).values)
-            t_blk = np.asarray(
-                t_c.isel(fc_sl).transpose("init_year", FC_TIME_DIM, MEMBER_DIM,
-                                           SPATIAL_LAT_FC,
-                                           SPATIAL_LON_FC).values)
+            m_strip = m_c.isel(fc_sl).transpose(
+                "init_year", FC_TIME_DIM, MEMBER_DIM, fc_lat_dim, fc_lon_dim)
+            o_strip = o_c.isel(ob_sl).transpose(
+                "init_year", OB_TIME_DIM, ob_lat_dim, ob_lon_dim)
+            t_strip = t_c.isel(fc_sl).transpose(
+                "init_year", FC_TIME_DIM, MEMBER_DIM, fc_lat_dim, fc_lon_dim)
+
+            m_blk = np.asarray(getattr(m_strip, "values"), dtype=np.float64)
+            o_blk = np.asarray(getattr(o_strip, "values"), dtype=np.float64)
+            t_blk = np.asarray(getattr(t_strip, "values"), dtype=np.float64)
+
+            # Fail loudly here rather than at the indexing line below: a
+            # collapsed strip is a dim/coord mix-up, not a data problem.
+            for _nm, _arr in (("model", m_blk), ("reference", o_blk),
+                              ("target", t_blk)):
+                if _arr.ndim < 2 or _arr.shape[-2] != n_rows or \
+                   _arr.shape[-1] != n_lon:
+                    raise ValueError(
+                        f"{_nm} strip has shape {_arr.shape}, expected the "
+                        f"last two axes to be ({n_rows}, {n_lon}). Slicing "
+                        f"collapsed an axis -- check that latency/lon are "
+                        f"DIMENSIONS in the file, not auxiliary coords."
+                    )
 
             tasks = []
             for iy in range(n_rows):
@@ -688,13 +783,13 @@ def run_one_variable(var, cfg, client):
         corrected = xr.DataArray(
             corrected_np.astype("float32"),
             dims=("init_year", FC_TIME_DIM, MEMBER_DIM,
-                  SPATIAL_LAT_FC, SPATIAL_LON_FC),
+                  fc_lat_dim, fc_lon_dim),
             coords={
                 "init_year": t_da["init_year"].values,
                 FC_TIME_DIM: t_da[FC_TIME_DIM].values,
                 MEMBER_DIM: t_da[MEMBER_DIM].values,
-                SPATIAL_LAT_FC: t_da[SPATIAL_LAT_FC].values,
-                SPATIAL_LON_FC: t_da[SPATIAL_LON_FC].values,
+                fc_lat_dim: np.asarray(t_da[SPATIAL_LAT_FC].values).ravel(),
+                fc_lon_dim: np.asarray(t_da[SPATIAL_LON_FC].values).ravel(),
             },
             name=f"{FC_VAR}_qdm",
             attrs=build_attrs(cfg, k, month, first_lead),
