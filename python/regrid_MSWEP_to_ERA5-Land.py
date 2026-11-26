@@ -18,7 +18,7 @@ dir_out   = dir_mswep + "regridded_ERA5-Land/"
 country = "Madagascar"
 weights_file = os.path.join(dir_out, f"weights_mswep_to_era5land_{country.lower()}.nc")
 
-years = range(1994, 2024 + 1)
+years = range(1993, 2024 + 1)
 
 os.makedirs(dir_out, exist_ok=True)
 
@@ -90,7 +90,7 @@ def open_mswep_daily_file(year, day_no):
     return da
 
 
-def build_regridder(year, weights_path=None, name_country):
+def build_regridder(year, name_country, weights_path=None):
     """
     Reuse existing Madagascar conservative weights.
     """
@@ -133,7 +133,7 @@ def build_regridder(year, weights_path=None, name_country):
 # -----------------------------
 # Main
 # -----------------------------
-regridder = build_regridder(1993, weights_file, country)
+regridder = build_regridder(1993, country, weights_file)
 
 for year in years:
     max_day = 366 if calendar.isleap(year) else 365

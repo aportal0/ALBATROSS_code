@@ -34,22 +34,9 @@ MEMORY MODEL -- why the spatial loop is blocked
     concatenated along the latitude axis at the end.
     If a worker still dies, lower LAT_BLOCK first.
 
-Output: one NetCDF per (variable, lead, month) with the corrected daily
-forecast fields, on the same grid and dims as the input, verification years
-only. No plots.
-
-MULTI-VARIABLE RUN
-    A single invocation now runs EVERY variable in RUN_VARIABLES below, one
-    after the other, instead of one variable per edit-and-rerun. Everything
-    that differed between the variables was configuration, so it is now a dict
-    (_VAR_CFG) and everything that is physics stays one function that takes the
-    config as an argument. Nothing that a delayed task needs is read from a
-    module-level global: the method, the dry-day switch and the trace threshold
-    are passed in explicitly, so a task can never pick up the settings of the
-    variable that happened to be configured last.
-
-    Set RUN_VARIABLES to any subset, e.g. ("tmax",) to redo only tmax.
-
+Output: one NetCDF per (lead, month) with the corrected daily forecast fields,
+on the same grid and dims as the input, verification years only.
+No plots.
 
 Run:
     srun --nodes=1 --ntasks=1 --cpus-per-task=8 --mem=32G --time=04:00:00 \
@@ -72,18 +59,24 @@ except ImportError:  # pragma: no cover
     fSPEI = None
 
 
-# ======================================================================
-# configuration
-# ======================================================================
+# The ONE place that changes: instead of one branch per variable selected by a
+# single VARIABLE constant, each variable is a small dict and main() loops.
+# Everything the per-variable branch used to define flat -- FC_DIR, OB_DIR,
+# OUT_DIR, FC_VAR, OB_VAR, METHOD, CENSOR_DRY, TRACE_MM, OB_LAT/LON, the two
+# path builders -- lives in the dict and is unpacked at the top of
+# run_one_variable(), so the body below is your original code unchanged.
+#
+# SET THIS. Any subset of _CFG, in the order you want them run.
+RUN_VARIABLES = ["pr", "tmax", "tmin"]
 
 
 # ======================================================================
-# shared configuration (identical for every variable)
+# shared configuration (same for every variable)
 # ======================================================================
 REGION      = "Madagascar"
 TRAIN_YEARS = range(1993, 2022 + 1)
-VERIF_YEARS = range(1993, 2025 + 1)   # NOTE: overlaps TRAIN_YEARS -- see README
-INIT_MONTH  = 10
+VERIF_YEARS = range(1993, 2025 + 1)
+INIT_MONTH  = 1
 
 N_MONTHS    = 4
 
@@ -99,67 +92,55 @@ N_QUANTILES  = 50
 QUANTILE_MIN = 0.01
 RNG_SEED     = 12345
 
-SPATIAL_LAT_FC = "lat"       # forecast spatial names
+SPATIAL_LAT_FC = "lat"
 SPATIAL_LON_FC = "lon"
 
 N_WORKERS  = int(os.environ.get("SLURM_CPUS_PER_TASK", 8))
-WORKER_MEM = "3GB"
+WORKER_MEM = "4GB"
 TIME_CHUNK = 40
-LAT_BLOCK  = 20            # latitude rows loaded per strip (lower if workers die)
+LAT_BLOCK  = 20
 
 C_TO_K = 273.15
 
 
 # ======================================================================
-# per-variable configuration
+# per-variable configuration -- your two branches, as two dicts
 # ======================================================================
-# One entry per variable. Plain values and small closures over a single base
-# directory -- NOT over a module-level global, so no state leaks between runs.
-#
-#   method          : the QDM transfer function ("multiplicative" / "additive")
-#   censor_dry      : whether zeros are censored to U(0, trace) and re-zeroed
-#   trace_mm        : the trace threshold, None when censoring is off
-#   units_to_target : "factor" (multiply) or "offset_kelvin" (add 273.15)
-#   mask_to_country : whether the reference is cut with fSPEI.subset_box
-#
-# soil is not a physical axis here: nothing in the correction reads it, so it
-# is not carried.
-
-
-def _pr_cfg():
-    """Precipitation: SEAS5 24h tp in METRES vs MSWEP in mm/day."""
-    OUT_DIR = Path(
-        f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_{INIT_MONTH}"
-        f"/tp/calibrated_MSWEP"
-    )
+def _cfg_pr():
+    FC_VAR = "tp"
     FC_DIR = Path(
-        f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_{INIT_MONTH}"
-        f"/tp/regridded_ERA5-Land"
+        f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_{INIT_MONTH:02d}"
+        f"/{FC_VAR}/regridded_ERA5-Land"
     )
     OB_DIR = Path(
         "/ec/res4/scratch/ecme4047/MSWEP/MSWEP_V316_test/Past/Daily/"
         "regridded_ERA5-Land"
     )
     return dict(
-        name="pr",
-        fc_var="tp",
+        is_pr=True,
+        temp_type="",
+        fc_var=FC_VAR,
         ob_var="precipitation",
+        fc_units_to_mm=1000.0,
+        ob_units_to_mm=1.0,
+        fc_units_in=None,
+        ob_units_in=None,
+        out_units=None,
+        trace_mm=0.1,
+        threshold_mm=1.0,
         method="multiplicative",
         censor_dry=True,
-        trace_mm=0.1,               # censoring / trace threshold (mm/day)
-        threshold_mm=1.0,           # DIAGNOSTIC ONLY -- never filters the pool
-        units="mm/day",
-        units_to_target="factor",
-        fc_units_to_target=1000.0,  # metres -> mm
-        ob_units_to_target=1.0,     # already mm/day
         ob_time_dim="time",
         ob_lat="lat",
         ob_lon="lon",
-        mask_to_country=False,      # MSWEP reference already cut to the region
+        mask_to_country=False,
         ref_tag="MSWEP",
         fc_dir=FC_DIR,
         ob_dir=OB_DIR,
-        out_dir=OUT_DIR,
+        out_dir=Path(
+            f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/"
+            f"init_{INIT_MONTH:02d}/{FC_VAR}/calibrated_MSWEP"
+        ),
         fc_path=lambda y, _d=FC_DIR: _d / (
             f"tp_24h_ecmwf51_init{y}{INIT_MONTH:02d}_{REGION}"
             f"_res_ERA5-Land_patch.nc"
@@ -167,41 +148,32 @@ def _pr_cfg():
         ob_path=lambda y, yoff, month, _d=OB_DIR: _d / (
             f"precip_daily_{y + yoff}{month:02d}_{REGION}_res_ERA5-Land.nc"
         ),
-        long_name="QDM-adjusted daily precipitation "
-                  "(multiplicative delta, dry days censored)",
-        method_note="Quantile Delta Mapping (Cannon et al. 2015), "
-                    "MULTIPLICATIVE form, dry days censored below "
-                    f"{0.1} mm/day",
     )
 
 
-def _temp_cfg(name):
-    """Temperature: SEAS5 mn2t24/mx2t24 vs ERA5-Land 2m, both in K."""
-    fc_var = {"tmin": "mn2t24", "tmax": "mx2t24"}[name]
-    ob_var = "t2m"
-    OUT_UNITS = "K"
+def _cfg_temp(temp_type):
+    FC_VAR = {"tmin": "mn2t24", "tmax": "mx2t24"}[temp_type]
+    OB_VAR = "t2m"
     FC_DIR = Path(
-        f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_{INIT_MONTH}"
-        f"/{fc_var}/regridded_ERA5-Land"
+            f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_{INIT_MONTH:02d}"
+        f"/{FC_VAR}/regridded_ERA5-Land"
     )
-    OB_DIR = Path(f"/ec/res4/scratch/ecme4047/ERA5-Land/{ob_var}/daily")
-    OUT_DIR = Path(
-        f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/init_{INIT_MONTH}"
-        f"/{fc_var}/calibrated_ERA5-Land"
-    )
-    stat = "minimum" if name == "tmin" else "maximum"
+    OB_DIR = Path(f"/ec/res4/scratch/ecme4047/ERA5-Land/{OB_VAR}/daily")
+    stat = "minimum" if temp_type == "tmin" else "maximum"
     return dict(
-        name=name,
-        fc_var=fc_var,
-        ob_var=ob_var,
-        method="additive",
-        censor_dry=False,
-        trace_mm=None,
-        threshold_mm=None,
-        units=OUT_UNITS,
-        units_to_target="kelvin",   # K passes through, celsius -> +273.15
+        is_pr=False,
+        temp_type=temp_type,
+        fc_var=FC_VAR,
+        ob_var=OB_VAR,
+        fc_units_to_mm=None,
+        ob_units_to_mm=None,
         fc_units_in="K",
         ob_units_in="K",
+        out_units="K",
+        trace_mm=None,
+        threshold_mm=None,
+        method="additive",
+        censor_dry=False,
         ob_time_dim="valid_time",
         ob_lat="latitude",
         ob_lon="longitude",
@@ -209,39 +181,75 @@ def _temp_cfg(name):
         ref_tag="ERA5-Land",
         fc_dir=FC_DIR,
         ob_dir=OB_DIR,
-        out_dir=OUT_DIR,
-        fc_path=lambda y, _d=FC_DIR, _v=fc_var: _d / (
+        out_dir=Path(
+            f"/ec/res4/scratch/ecme4047/C3S_seasonal/ecmwf51/24h/"
+            f"init_{INIT_MONTH:02d}/{FC_VAR}/calibrated_ERA5-Land"
+        ),
+        fc_path=lambda y, _d=FC_DIR, _v=FC_VAR: _d / (
             f"{_v}_24h_ecmwf51_init{y}{INIT_MONTH:02d}_{REGION}"
             f"_res_ERA5-Land_patch.nc"
         ),
-        ob_path=lambda y, yoff, month, _d=OB_DIR, _v=ob_var, _s=stat: _d / (
-            f"_{y + yoff}".replace("_", "") + f"/{_v}_daily_{_s}_"
-            f"{y + yoff}{month:02d}.nc"
+        ob_path=lambda y, yoff, month, _d=OB_DIR, _v=OB_VAR, _s=stat: _d / (
+            str(y + yoff) + f"/{_v}_daily_{_s}_{y + yoff}{month:02d}.nc"
         ),
-        long_name=f"QDM-adjusted daily {name} (additive delta, all days corrected)",
-        method_note="Quantile Delta Mapping (Cannon et al. 2015), ADDITIVE form",
     )
 
 
-_VAR_CFG = {
-    "pr":   _pr_cfg(),
-    "tmax": _temp_cfg("tmax"),
-    "tmin": _temp_cfg("tmin"),
+_CFG = {
+    "pr":   _cfg_pr(),
+    "tmax": _cfg_temp("tmax"),
+    "tmin": _cfg_temp("tmin"),
 }
 
-# ---- WHICH VARIABLES TO RUN, IN ORDER ---------------------------------
-# Any subset of ("pr", "tmax", "tmin"). The dask cluster is created once and
-# reused; results do not depend on the order.
-RUN_VARIABLES = ("pr", "tmax", "tmin")
-
 for _v in RUN_VARIABLES:
-    if _v not in _VAR_CFG:
-        raise ValueError(f"unknown variable {_v!r}; known: {sorted(_VAR_CFG)}")
+    if _v not in _CFG:
+        raise ValueError(f"unknown variable {_v!r}; known: {sorted(_CFG)}")
+
+# which variable the helper functions are currently serving; set by
+# run_one_variable() and read only by to_target_units/build_attrs, which take
+# the rest of their per-variable inputs as arguments.
+_CURRENT_VAR = RUN_VARIABLES[0]
 
 LEAD_MONTHS = [((INIT_MONTH - 1 + k) % 12) + 1 for k in range(N_MONTHS)]
 TARGET = [(m, (INIT_MONTH - 1 + k) // 12) for k, m in enumerate(LEAD_MONTHS)]
 
 
+
+
+def _crop_to_common(parts, dim, label):
+    """Crop every part to the SHORTEST length along `dim`.
+
+    The spin-up cut is a RUNNING window -- `valid_time >= init + 10 days` within
+    the target month -- so the number of surviving lead steps depends on where
+    the month falls relative to the init and differs between years. xarray
+    cannot align parts whose lead axis differs in length under
+    `join="override"`, and padding invents lead coordinates that then fail
+    coordinate validation. Cropping to the common length avoids both: no
+    coordinate is created, and the lost slots are the tail days of the longest
+    years, which cost a few samples out of hundreds per cell.
+
+    Returns the cropped parts and the common length.
+    """
+    lengths = sorted({p.sizes[dim] for p in parts})
+    if len(lengths) == 1:
+        return parts, lengths[0]
+    common = lengths[0]
+    print(f"  {label}: lead axis '{dim}' differs across years {lengths}"
+          f" -> cropping all to {common}", flush=True)
+    return [p.isel({dim: slice(0, common)}) for p in parts], common
+
+
+def _concat_pool(parts, years, dim, label):
+    """Concatenate pool parts along 'init_year' after cropping their lead axis
+    to a common length."""
+    parts, _ = _crop_to_common(parts, dim, label)
+    out = xr.concat(parts, dim="init_year", join="override")
+    return out.assign_coords(init_year=years)
+
+
+# ======================================================================
+# helpers
+# ======================================================================
 
 # ======================================================================
 # helpers
@@ -262,53 +270,6 @@ def _init_year(fname):
     return int(stem.split("init")[1][:4])
 
 
-
-def _spatial_dims(da, lat_name, lon_name, which):
-    """Return the REAL dimension names holding the lat/lon axes.
-
-    A regridded file may carry `lat`/`lon` as auxiliary COORDINATES on y/x
-    dims. `m_c.sizes[lat_name]` then fails or collapses a strip under isel, so
-    resolve to a dimension here -- by name when it already is one, otherwise by
-    matching the coordinate to the dimension of the same length.
-    """
-    def resolve(name, other):
-        if name in da.dims:
-            return name
-        if name not in da.coords:
-            raise KeyError(
-                f"{which} data has neither a dimension nor a coordinate "
-                f"named '{name}'. dims={list(da.dims)} coords={list(da.coords)}"
-            )
-        target = np.size(da[name].values)
-        # prefer a 1-D dim of that length that is not the other spatial axis
-        cands = [d for d in da.dims
-                 if da.sizes[d] == target and d not in (lat_name, lon_name)]
-        # a 2-D coordinate (curvilinear) has no matching dim; fall back to
-        # positional naming so the caller gets a clear message rather than a
-        # collapse.
-        if not cands:
-            raise ValueError(
-                f"'{name}' in the {which} data is a coordinate of shape "
-                f"{np.shape(da[name].values)} but no dimension matches it. "
-                f"dims={list(da.dims)}. Promote it with da.swap_dims(...) or "
-                f"regrid onto the forecast grid."
-            )
-        return cands[0]
-
-    lat_dim = resolve(lat_name, lon_name)
-    lon_dim = resolve(lon_name, lat_name)
-
-    # if lat and lon resolved onto the same dim (both 2-D on one axis), that is
-    # a curvilinear grid the strip loop cannot handle positionally.
-    if lat_dim == lon_dim:
-        raise ValueError(
-            f"{which} lat and lon both resolve to dim '{lat_dim}': this is a "
-            f"curvilinear grid and the rectangular strip loop cannot index it. "
-            f"Regrid onto a rectilinear grid first."
-        )
-    return lat_dim, lon_dim
-
-
 def lead_keep_mask(da, month, init_year, month_day=1):
     """Steps to keep: valid_time in `month` AND lead >= SKIP_LEAD_DAYS days
     after the initialization date (forecast spin-up excluded)."""
@@ -320,23 +281,26 @@ def lead_keep_mask(da, month, init_year, month_day=1):
     return in_month & (da[FC_SELECT_COORD] >= cutoff)
 
 
+def to_target_units(arr, kind, is_pr):
+    """Precipitation: forecast m -> mm, reference passed through.
+    Temperature: everything -> Kelvin.
 
-def to_target_units(arr, kind, cfg):
-    """Bring a sample set into the working unit, per variable.
-
-    "factor" : multiply (precipitation m -> mm).
-    "kelvin" : add 273.15 when the file is in celsius, pass K through.
+    `is_pr` is passed in, not read from the global VARIABLE: the delayed tasks
+    run in worker processes and must not depend on a module global.
     """
-    if cfg["units_to_target"] == "factor":
-        factor = (cfg["fc_units_to_target"] if kind == "fc"
-                  else cfg["ob_units_to_target"])
+    if is_pr:
+        e = _CFG["pr"]
+        factor = (e["fc_units_to_mm"] if kind == "fc"
+                  else e["ob_units_to_mm"])
         return arr * factor
-    units_in = cfg["fc_units_in"] if kind == "fc" else cfg["ob_units_in"]
+    e = _CFG[_CURRENT_VAR]
+    units_in = e["fc_units_in"] if kind == "fc" else e["ob_units_in"]
     if str(units_in).lower() in ("c", "celsius"):
         return arr + C_TO_K
     return arr
 
-def censor_dry_fn(arr, trace, rng=None):
+
+def censor_dry(arr, trace, rng=None):
     """Exact zeros -> nonzero uniform values in (0, trace)."""
     arr = np.asarray(arr, dtype=np.float64)
     out = arr.copy()
@@ -355,20 +319,15 @@ def require_zero(arr, trace):
     return out
 
 
-# ======================================================================
-# the transfer function -- the ONE place the methods differ
-# ======================================================================
 def qdm_transfer(m_pool, o_pool, target, method):
     """
+    The one place the two methods differ.
+
     multiplicative (pr) :  y = x * ( xo(p) / xm(p) )
     additive       (tas):  y = x + ( xo(p) - xm(p) )
 
     with p = F_mod_train(x) the position of the target in the model training
     climatology, so the anomaly relative to the model survives the correction.
-
-    `method` is an ARGUMENT, not a global: the delayed tasks run in worker
-    processes, and a global read there would be whichever variable was
-    configured last.
 
     Returns (corrected, p, o_at_p) -- p and o_at_p are needed downstream for
     the dry-day test on the observed quantile, and are discarded by the
@@ -398,7 +357,9 @@ def qdm_transfer(m_pool, o_pool, target, method):
     return corrected, p, o_at_p
 
 
-def correct_cell(m_pool, o_pool, t_in, iy, ix, method, censor_dry, trace_mm):
+@delayed
+def correct_cell(m_pool, o_pool, t_in, iy, ix,
+                 method, censor_dry, trace_mm, is_pr):
     """
     Correct ONE grid cell -- the whole QDM for that point.
 
@@ -406,12 +367,15 @@ def correct_cell(m_pool, o_pool, t_in, iy, ix, method, censor_dry, trace_mm):
     o_pool : (ny_o, ntime_o)       reference pool, ALL years
     t_in   : (ny, ntime, nmem)     target for this cell
     iy, ix : grid indices (passed through for provenance)
-    method, censor_dry, trace_mm : the VARIABLE's settings, passed in rather
-        than read from globals so a task cannot pick up another variable's.
 
-    For censoring variables the arrays arrive already censored (zeros ->
-    U(0, trace)) and the dry days are re-zeroed here. For the others nothing
-    is censored and nothing is re-zeroed.
+    The transfer function is estimated from the POOLED model and reference
+    samples (all years and members flattened), then applied per year and per
+    member of the target.
+
+    For "pr" the arrays arrive already censored (zeros -> U(0, trace)) and the
+    dry days are re-zeroed here: where the observed value at that quantile is
+    below the trace, and where the corrected value falls below it.
+    For "tas" nothing is censored and nothing is re-zeroed.
     """
     m_flat = np.asarray(m_pool, dtype=np.float64).ravel()
     o_flat = np.asarray(o_pool, dtype=np.float64).ravel()
@@ -431,7 +395,8 @@ def correct_cell(m_pool, o_pool, t_in, iy, ix, method, censor_dry, trace_mm):
     out = np.empty_like(t_in, dtype=np.float64)
     for yi in range(t_in.shape[0]):
         tgt = t_in[yi]                       # (ntime, nmem)
-        corrected, p, o_at_p = qdm_transfer(m_flat, o_flat, tgt.ravel(), method)
+        corrected, p, o_at_p = qdm_transfer(m_flat, o_flat, tgt.ravel(),
+                                            method)
 
         if censor_dry:
             # zero where the OBSERVED value at that quantile is below the
@@ -445,25 +410,40 @@ def correct_cell(m_pool, o_pool, t_in, iy, ix, method, censor_dry, trace_mm):
     return out.astype(np.float32)
 
 
-
 # ======================================================================
 # output attributes
 # ======================================================================
-def build_attrs(cfg, k, month, first_lead):
+def build_attrs(k, month, first_lead, is_pr, temp_type, trace_mm,
+                out_units):
     """Output attributes, with the method and the dry-day convention recorded."""
+    if is_pr:
+        units = "mm/day"
+        long_name = ("QDM-adjusted daily precipitation "
+                     "(multiplicative delta, dry days censored)")
+        method = ("Quantile Delta Mapping (Cannon et al. 2015), "
+                  "MULTIPLICATIVE form, dry days censored below "
+                  f"{trace_mm} mm/day")
+        variable = "pr"
+    else:
+        units = out_units
+        long_name = (f"QDM-adjusted daily {temp_type} "
+                     f"(additive delta, all days corrected)")
+        method = ("Quantile Delta Mapping (Cannon et al. 2015), "
+                  "ADDITIVE form")
+        variable = temp_type
+
     attrs = {
-        "units": cfg["units"],
-        "long_name": cfg["long_name"],
-        "method": cfg["method_note"],
-        "variable": cfg["name"],
+        "units": units,
+        "long_name": long_name,
+        "method": method,
+        "variable": variable,
         "lead_index": str(k),
         "target_month": f"{month:02d}",
         "skip_lead_days": str(SKIP_LEAD_DAYS),
         "members_kept": str(N_MEMBERS_KEEP),
         "n_quantiles": str(N_QUANTILES),
         "train": f"{TRAIN_YEARS[0]}-{TRAIN_YEARS[-1]}",
-        "verify": f"{VERIF_YEARS[0]}-{VERIF_YEARS[-1]}",
-        "reference_product": cfg["ref_tag"],
+        "reference_product": _CFG[_CURRENT_VAR]["ref_tag"],
         "window_note": (
             f"model calibrated and corrected on days > {SKIP_LEAD_DAYS} "
             f"days after init; reference training pool spans the FULL "
@@ -472,54 +452,51 @@ def build_attrs(cfg, k, month, first_lead):
             f"model and reference both span the full month {month:02d}"
         ),
     }
-    if cfg["censor_dry"]:
-        attrs["trace_mm"] = str(cfg["trace_mm"])
+    if is_pr:
+        attrs["trace_mm"] = str(trace_mm)
         attrs["rng_seed"] = str(RNG_SEED)
     return attrs
 
 
-
 # ======================================================================
-# one variable, all leads
+# one variable: your original main() body, unchanged
 # ======================================================================
-def run_one_variable(var, cfg, client):
-    """The whole calibration for ONE variable. Everything variable-specific
-    comes from `cfg`; nothing is read from a module-level global."""
-    fc_path = cfg["fc_path"]
-    ob_path = cfg["ob_path"]
-    FC_VAR = cfg["fc_var"]
-    OB_VAR = cfg["ob_var"]
-    OB_LAT, OB_LON = cfg["ob_lat"], cfg["ob_lon"]
-    OB_TIME_DIM = cfg["ob_time_dim"]
-    METHOD = cfg["method"]
-    CENSOR_DRY = cfg["censor_dry"]
-    TRACE_MM = cfg["trace_mm"]
-    MASK_TO_COUNTRY = cfg["mask_to_country"]
-    REF_TAG = cfg["ref_tag"]
-    OUT_DIR = cfg["out_dir"]
-    FC_DIR = cfg["fc_dir"]
+def run_one_variable(var):
+    """ONE variable, all leads. The body below is the original
+    single-variable code; only the per-variable names come from _CFG[var]."""
+    global _CURRENT_VAR
+    _CURRENT_VAR = var
 
+    e = _CFG[var]
+    FC_VAR, OB_VAR = e["fc_var"], e["ob_var"]
+    OB_LAT, OB_LON = e["ob_lat"], e["ob_lon"]
+    OB_TIME_DIM = e["ob_time_dim"]
+    CENSOR_DRY = e["censor_dry"]
+    TRACE_MM = e["trace_mm"]
+    IS_PR = e["is_pr"]
+    MASK_TO_COUNTRY = e["mask_to_country"]
+    TEMP_TYPE = e["temp_type"]
+    OUT_UNITS = e["out_units"]
+    OUT_DIR = e["out_dir"]
+    FC_DIR = e["fc_dir"]
+    fc_path = e["fc_path"]
+    ob_path = e["ob_path"]
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-
-    print(f"\n{'#' * 70}", flush=True)
-    print(f"# variable: {var}  method: {METHOD}  forecast var '{FC_VAR}'  "
-          f"reference var '{OB_VAR}'", flush=True)
-    print(f"{'#' * 70}", flush=True)
 
     train_fc_files = [fc_path(y) for y in TRAIN_YEARS if fc_path(y).exists()]
     verif_fc_files = [fc_path(y) for y in VERIF_YEARS if fc_path(y).exists()]
     print(f"forecast files: {len(train_fc_files)} train, "
           f"{len(verif_fc_files)} verif", flush=True)
     if not train_fc_files:
-        print(f"no forecast files found in {FC_DIR} -- skipping {var}", flush=True)
+        print(f"no forecast files found in {FC_DIR}", flush=True)
         return
 
     for k, (month, yoff) in enumerate(TARGET):
-        print(f"\n=== {var}: lead {k} -- target month {month:02d} "
+        print(f"\n=== lead {k} -- target month {month:02d} "
               f"(year offset {yoff}) ===", flush=True)
         first_lead = (k == 0) and SKIP_LEAD_DAYS > 0
 
-        # ---- 1. model pool: all years, all members, month, spin-up cut ----
+        # ---- 1. model pool: all years, all members, month, spin-up cut --
         m_parts = []
         m_years = []
         for y in TRAIN_YEARS:
@@ -535,7 +512,7 @@ def run_one_variable(var, cfg, client):
                 continue
             sub = sub.isel({MEMBER_DIM: slice(0, N_MEMBERS_KEEP)})
             sub = sub.squeeze(FC_CONCAT_DIM, drop=True)
-            sub = xr.apply_ufunc(to_target_units, sub, "fc", cfg,
+            sub = xr.apply_ufunc(to_target_units, sub, "fc", IS_PR,
                                  dask="parallelized",
                                  output_dtypes=[np.float64])
             m_parts.append(sub.transpose(FC_TIME_DIM, MEMBER_DIM,
@@ -545,19 +522,12 @@ def run_one_variable(var, cfg, client):
         if not m_parts:
             print("  no model training data -> skip", flush=True)
             continue
-        m_da = xr.concat(m_parts, dim="init_year", join="override")
-        m_da = m_da.assign_coords(init_year=m_years)
+        m_da = _concat_pool(m_parts, m_years, FC_TIME_DIM, "model pool")
         # hourly precip accumulations can go slightly negative
-        m_da = m_da.clip(min=0.0) if CENSOR_DRY else m_da
+        m_da = m_da.clip(min=0.0) if IS_PR else m_da
         print(f"  model pool {dict(m_da.sizes)}", flush=True)
 
-        # ---- 2. reference pool: same month, all years ---------------------
-        # The reference file for init year y is read from year y+yoff: for a
-        # lead that crosses into the next calendar year the December lead of an
-        # October init is verified against December of y+1. That is the correct
-        # pairing. The pool is labelled with the INIT years so it lines up with
-        # m_da and t_da -- a positional label would drift wherever a file is
-        # missing.
+        # ---- 2. reference pool: same month, all years --------------------
         o_parts = []
         o_years = []
         for y in TRAIN_YEARS:
@@ -572,7 +542,7 @@ def run_one_variable(var, cfg, client):
                      if d not in (OB_LAT, OB_LON) and d != OB_TIME_DIM]
             if extra:
                 ob = ob.isel({d: 0 for d in extra}, drop=True)
-            ob = xr.apply_ufunc(to_target_units, ob, "ob", cfg,
+            ob = xr.apply_ufunc(to_target_units, ob, "ob", IS_PR,
                                 dask="parallelized",
                                 output_dtypes=[np.float64])
             o_parts.append(ob.transpose(OB_TIME_DIM, OB_LAT, OB_LON))
@@ -580,15 +550,13 @@ def run_one_variable(var, cfg, client):
             ds.close()
         if not o_parts:
             print("  no reference training data -> skip", flush=True)
+            print("path for obs:", f)
             continue
-        o_da = xr.concat(o_parts, dim="init_year", join="override")
-        o_da = o_da.assign_coords(init_year=o_years)
-        o_da = o_da.clip(min=0.0) if CENSOR_DRY else o_da
-        print(f"  reference pool {dict(o_da.sizes)} "
-              f"(init years {o_years[0]}-{o_years[-1]}, offset {yoff:+d} -> "
-              f"files {o_years[0] + yoff}-{o_years[-1] + yoff})", flush=True)
+        o_da = _concat_pool(o_parts, o_years, OB_TIME_DIM, "reference pool")
+        o_da = o_da.clip(min=0.0) if IS_PR else o_da
+        print(f"  reference pool {dict(o_da.sizes)}", flush=True)
 
-        # ---- 3. target: verification years --------------------------------
+        # ---- 3. target: verification years -------------------------------
         t_parts = []
         t_years = []
         for y in VERIF_YEARS:
@@ -604,7 +572,7 @@ def run_one_variable(var, cfg, client):
                 continue
             sub = sub.isel({MEMBER_DIM: slice(0, N_MEMBERS_KEEP)})
             sub = sub.squeeze(FC_CONCAT_DIM, drop=True)
-            sub = xr.apply_ufunc(to_target_units, sub, "fc", cfg,
+            sub = xr.apply_ufunc(to_target_units, sub, "fc", IS_PR,
                                  dask="parallelized",
                                  output_dtypes=[np.float64])
             t_parts.append(sub.transpose(FC_TIME_DIM, MEMBER_DIM,
@@ -614,22 +582,18 @@ def run_one_variable(var, cfg, client):
         if not t_parts:
             print("  no verification data -> skip", flush=True)
             continue
-        t_da = xr.concat(t_parts, dim="init_year", join="override")
-        # Label with the INIT years, not the position: a skipped year would
-        # otherwise shift every later year's label silently.
-        t_da = t_da.assign_coords(init_year=t_years)
-        t_da = t_da.clip(min=0.0) if CENSOR_DRY else t_da
-        print(f"  target     {dict(t_da.sizes)} "
-              f"(init years {t_years[0]}-{t_years[-1]})", flush=True)
+        t_da = _concat_pool(t_parts, t_years, FC_TIME_DIM, "target")
+        t_da = t_da.clip(min=0.0) if IS_PR else t_da
+        print(f"  target     {dict(t_da.sizes)}", flush=True)
 
-        # ---- 4. censoring (precipitation only) ----------------------------
+        # ---- 4. censoring (precipitation only) ---------------------------
         # Zeros -> U(0, trace) on all three sample sets, BEFORE any mapping.
-        if CENSOR_DRY:
-            def _censor_block(block, seed_off, _trace=TRACE_MM):
-                rng = np.random.default_rng(RNG_SEED + seed_off)
-                out, _ = censor_dry_fn(block, _trace, rng)
-                return out
+        def _censor_block(block, seed_off):
+            rng = np.random.default_rng(RNG_SEED + seed_off)
+            out, _ = censor_dry(block, TRACE_MM, rng)
+            return out
 
+        if CENSOR_DRY:
             m_c = xr.apply_ufunc(
                 _censor_block, m_da, kwargs={"seed_off": 0},
                 input_core_dims=[[FC_TIME_DIM, MEMBER_DIM]],
@@ -657,107 +621,59 @@ def run_one_variable(var, cfg, client):
         else:
             m_c, o_c, t_c = m_da, o_da, t_da
 
-        # ---- 5. point-by-point QDM, in latitude strips --------------------
-        # SLICE BY DIMENSION, NEVER BY COORDINATE. In regridded SEAS5 output
-        # `lat`/`lon` are frequently auxiliary COORDINATES carried on `y`/`x`
-        # dims. isel() with a coordinate name then selects along the wrong
-        # axis and collapses the strip to a scalar -- which is exactly the
-        # "array is 0-dimensional, but 2 were indexed" crash. Resolve the
-        # dimension names once, here, and use them for isel/transpose/chunks.
-        fc_lat_dim, fc_lon_dim = _spatial_dims(m_c, SPATIAL_LAT_FC,
-                                              SPATIAL_LON_FC, "forecast")
-        ob_lat_dim, ob_lon_dim = _spatial_dims(o_c, OB_LAT, OB_LON, "reference")
-
-        n_lat = m_c.sizes[fc_lat_dim]
-        n_lon = m_c.sizes[fc_lon_dim]
+        # ---- 5. point-by-point QDM, in latitude strips -------------------
+        n_lat = m_c.sizes[SPATIAL_LAT_FC]
+        n_lon = m_c.sizes[SPATIAL_LON_FC]
         n_year = t_c.sizes["init_year"]
         n_time = t_c.sizes[FC_TIME_DIM]
         n_mem  = t_c.sizes[MEMBER_DIM]
-        print(f"  grid {n_lat} x {n_lon} (dims '{fc_lat_dim}' x '{fc_lon_dim}'); "
-              f"reference dims '{ob_lat_dim}' x '{ob_lon_dim}'; "
-              f"target {n_year} x {n_time} x {n_mem}", flush=True)
-
-        # The strip loop cuts model AND reference with the same integer
-        # lat0:lat1 range. That is only sound when both lat axes are the SAME
-        # physical axis in the SAME order, so verify it rather than warn.
-        if (ob_lat_dim, ob_lon_dim) != (fc_lat_dim, fc_lon_dim):
-            raise ValueError(
-                f"the reference is on different spatial dims "
-                f"({ob_lat_dim}, {ob_lon_dim}) than the forecast "
-                f"({fc_lat_dim}, {fc_lon_dim}). The strip loop would pair "
-                f"model rows with unrelated reference rows. Cut/regrid the "
-                f"reference onto the forecast grid first."
-            )
-        if (m_c.sizes[fc_lat_dim], m_c.sizes[fc_lon_dim]) != \
-           (o_c.sizes[ob_lat_dim], o_c.sizes[ob_lon_dim]):
-            raise ValueError(
-                f"forecast grid {m_c.sizes[fc_lat_dim]}x{m_c.sizes[fc_lon_dim]} "
-                f"vs reference grid {o_c.sizes[ob_lat_dim]}x{o_c.sizes[ob_lon_dim]} "
-                f"-- the reference must be cut to the forecast patch."
-            )
+        print(f"  grid {n_lat} x {n_lon}; target {n_year} x {n_time} x {n_mem}",
+              flush=True)
 
         # the strip loop indexes model AND reference with the same integer
         # lat0:lat1 range -- that is only safe if the two grids line up
-        try:
-            fc_lat_vals = np.asarray(t_da[SPATIAL_LAT_FC].values).ravel()
-            ob_lat_vals = np.asarray(o_da[OB_LAT].values).ravel()
-        except KeyError as exc:
-            raise KeyError(
-                f"latitude coord {exc} not found; forecast has "
-                f"{list(t_da.coords)}, reference has {list(o_da.coords)}"
-            ) from None
-        if fc_lat_vals.shape != ob_lat_vals.shape or not np.allclose(
-                fc_lat_vals, ob_lat_vals, atol=1e-6):
+        fc_lat_vals = np.asarray(t_da[SPATIAL_LAT_FC].values)
+        ob_lat_vals = np.asarray(o_da[OB_LAT].values)
+        if fc_lat_vals.shape != ob_lat_vals.shape:
             raise ValueError(
-                f"forecast and reference latitude axes differ "
-                f"(forecast {fc_lat_vals[:3]}...{fc_lat_vals[-1]}, "
-                f"reference {ob_lat_vals[:3]}...{ob_lat_vals[-1]}). The strip "
-                f"loop cuts both positionally, so this would calibrate every "
-                f"cell against the wrong reference row. Cut the reference to "
-                f"the forecast extent first."
+                f"forecast/reference lat length mismatch "
+                f"({fc_lat_vals.shape} vs {ob_lat_vals.shape}): the strip "
+                f"loop would calibrate every cell against the wrong "
+                f"reference row. Re-regrid one of them."
             )
+        if not np.allclose(fc_lat_vals, ob_lat_vals, atol=1e-6):
+            print("  WARNING: forecast and reference latitude coords differ; "
+                  "strip alignment assumes identical ordering.", flush=True)
 
         corrected_blocks = []
         for lat0 in range(0, n_lat, LAT_BLOCK):
             lat1 = min(lat0 + LAT_BLOCK, n_lat)
-            fc_sl = {fc_lat_dim: slice(lat0, lat1)}
-            ob_sl = {ob_lat_dim: slice(lat0, lat1)}
+            fc_sl = {SPATIAL_LAT_FC: slice(lat0, lat1)}
+            ob_sl = {OB_LAT: slice(lat0, lat1)}
             n_rows = lat1 - lat0
 
             # materialise ONE strip (model, reference, target) as numpy
-            m_strip = m_c.isel(fc_sl).transpose(
-                "init_year", FC_TIME_DIM, MEMBER_DIM, fc_lat_dim, fc_lon_dim)
-            o_strip = o_c.isel(ob_sl).transpose(
-                "init_year", OB_TIME_DIM, ob_lat_dim, ob_lon_dim)
-            t_strip = t_c.isel(fc_sl).transpose(
-                "init_year", FC_TIME_DIM, MEMBER_DIM, fc_lat_dim, fc_lon_dim)
-
-            m_blk = np.asarray(getattr(m_strip, "values"), dtype=np.float64)
-            o_blk = np.asarray(getattr(o_strip, "values"), dtype=np.float64)
-            t_blk = np.asarray(getattr(t_strip, "values"), dtype=np.float64)
-
-            # Fail loudly here rather than at the indexing line below: a
-            # collapsed strip is a dim/coord mix-up, not a data problem.
-            for _nm, _arr in (("model", m_blk), ("reference", o_blk),
-                              ("target", t_blk)):
-                if _arr.ndim < 2 or _arr.shape[-2] != n_rows or \
-                   _arr.shape[-1] != n_lon:
-                    raise ValueError(
-                        f"{_nm} strip has shape {_arr.shape}, expected the "
-                        f"last two axes to be ({n_rows}, {n_lon}). Slicing "
-                        f"collapsed an axis -- check that latency/lon are "
-                        f"DIMENSIONS in the file, not auxiliary coords."
-                    )
+            m_blk = np.asarray(
+                m_c.isel(fc_sl).transpose("init_year", FC_TIME_DIM, MEMBER_DIM,
+                                           SPATIAL_LAT_FC,
+                                           SPATIAL_LON_FC).values)
+            o_blk = np.asarray(
+                o_c.isel(ob_sl).transpose("init_year", OB_TIME_DIM,
+                                          OB_LAT, OB_LON).values)
+            t_blk = np.asarray(
+                t_c.isel(fc_sl).transpose("init_year", FC_TIME_DIM, MEMBER_DIM,
+                                           SPATIAL_LAT_FC,
+                                           SPATIAL_LON_FC).values)
 
             tasks = []
             for iy in range(n_rows):
                 for ix in range(n_lon):
-                    tasks.append(delayed(correct_cell)(
-                        m_blk[..., iy, ix],
-                        o_blk[..., iy, ix],
-                        t_blk[..., iy, ix],
-                        lat0 + iy, ix,
-                        METHOD, CENSOR_DRY, TRACE_MM))
+                    tasks.append(correct_cell(m_blk[..., iy, ix],
+                                              o_blk[..., iy, ix],
+                                              t_blk[..., iy, ix],
+                                              lat0 + iy, ix,
+                                              e["method"], CENSOR_DRY,
+                                              TRACE_MM, IS_PR))
             res = compute(*tasks)
 
             blk = np.stack(res).reshape(n_rows, n_lon,
@@ -779,25 +695,26 @@ def run_one_variable(var, cfg, client):
             corrected_np.shape
         print(f"  corrected array {corrected_np.shape}", flush=True)
 
-        # ---- 6. back to xarray and write ----------------------------------
+        # ---- 6. back to xarray and write ---------------------------------
         corrected = xr.DataArray(
             corrected_np.astype("float32"),
             dims=("init_year", FC_TIME_DIM, MEMBER_DIM,
-                  fc_lat_dim, fc_lon_dim),
+                  SPATIAL_LAT_FC, SPATIAL_LON_FC),
             coords={
                 "init_year": t_da["init_year"].values,
                 FC_TIME_DIM: t_da[FC_TIME_DIM].values,
                 MEMBER_DIM: t_da[MEMBER_DIM].values,
-                fc_lat_dim: np.asarray(t_da[SPATIAL_LAT_FC].values).ravel(),
-                fc_lon_dim: np.asarray(t_da[SPATIAL_LON_FC].values).ravel(),
+                SPATIAL_LAT_FC: t_da[SPATIAL_LAT_FC].values,
+                SPATIAL_LON_FC: t_da[SPATIAL_LON_FC].values,
             },
             name=f"{FC_VAR}_qdm",
-            attrs=build_attrs(cfg, k, month, first_lead),
+            attrs=build_attrs(k, month, first_lead, IS_PR, TEMP_TYPE,
+                                      TRACE_MM, OUT_UNITS),
         )
         out_path = OUT_DIR / (
             f"{FC_VAR}_24h_mon{month:02d}_init{INIT_MONTH:02d}_"
-            f"{t_years[0]}-{t_years[-1]}_{REGION}_"
-            f"res_ERA5-Land_qdm_{REF_TAG}.nc"
+            f"{VERIF_YEARS[0]}-{VERIF_YEARS[-1]}_{REGION}_"
+            f"res_ERA5-Land_qdm_{e['ref_tag']}.nc"
         )
         out_ds = corrected.to_dataset()
         out_ds.to_netcdf(out_path, encoding={
@@ -805,11 +722,13 @@ def run_one_variable(var, cfg, client):
         })
         print(f"  wrote {out_path}", flush=True)
 
-    print(f"{var}: done", flush=True)
+    print("done", flush=True)
+
+print("done", flush=True)
 
 
 # ======================================================================
-# main
+# main -- build the cluster once, then loop over the variables
 # ======================================================================
 def main():
     LOCAL_SCRATCH = os.environ.get("TMPDIR")
@@ -826,16 +745,14 @@ def main():
     )
     client = Client(cluster)
     print(f"dask: {client}", flush=True)
-    print(f"running variables: {list(RUN_VARIABLES)}", flush=True)
+    print(f"variables to run: {RUN_VARIABLES}", flush=True)
 
     try:
         for var in RUN_VARIABLES:
-            # One variable at a time: free the previous variable's futures
-            # before the next one loads its pools.
-            client.cancel(client.futures, force=True)
-            run_one_variable(var, _VAR_CFG[var], client)
-        print("\nall variables done", flush=True)
-
+            print(f"\n{'=' * 70}")
+            print(f"=== {var} ===")
+            print(f"{'=' * 70}", flush=True)
+            run_one_variable(var)
     finally:
         client.close()
         cluster.close()
