@@ -18,7 +18,7 @@ import numpy as np
 import xarray as xr
 
 # ---------------------------------------------------------------- parameters
-month_init = 10                     # target init month, 1..12
+month_init = 1                     # target init month, 1..12
 country    = "Madagascar"           # region tag used in the filename
 year_range = [1993, 2025]           # [y0, yN] inclusive
 variable   = "tp"                   # variable name ("mn2t24", "mx2t24", "tp"); also names the data folder
